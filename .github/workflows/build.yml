@@ -7,9 +7,6 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -59,14 +56,6 @@ jobs:
           }
           MANIFEST
           cd ratdeck-firmware && zip -r ../ratdeck-firmware.zip . && cd ..
-
-      - name: Upload firmware artifact
-        uses: actions/upload-artifact@v5
-        with:
-          name: ratdeck-firmware
-          path: |
-            ratdeck-firmware.zip
-            ratdeck-merged.bin
 
   release:
     needs: build
@@ -122,10 +111,16 @@ jobs:
           cd ratdeck-firmware && zip -r ../ratdeck-firmware.zip . && cd ..
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            ratdeck-firmware.zip
-            ratdeck-merged.bin
-          generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_args=(--generate-notes)
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            release_args+=(--prerelease)
+          fi
+
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" ratdeck-firmware.zip ratdeck-merged.bin --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" ratdeck-firmware.zip ratdeck-merged.bin "${release_args[@]}"
+          fi

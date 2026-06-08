@@ -177,7 +177,10 @@ void LvStatusBar::setGPSFix(bool hasFix) {
 
 void LvStatusBar::setBatteryPercent(int pct) {
     pct = normalizedBattery(pct);
-    if (_battPct == pct) return;
+
+    // Suppress single-percent ADC noise: only update if the value changed by 2% or more
+    if (_battPct >= 0 && abs(pct - _battPct) < 2) return;
+
     _battPct = pct;
     refreshBattery();
 }

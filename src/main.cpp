@@ -694,10 +694,196 @@ static bool sendDiagnosticLxmf(size_t length, const char* explicitDest) {
     return ok;
 }
 
+static constexpr uint8_t LITE_TRANSPORT_ID[16] = {
+    'r', 's', 'l', 'i', 't', 'e', '-', 'h',
+    'e', 'l', 't', 'e', 'c', '-', 'v', '3'
+};
+static constexpr size_t RNODE_DIAG_SINGLE_MTU = 254;
+static RNS::Bytes diagnosticLiteLinkId;
+
+static bool sendDiagnosticRawReticulum(const RNS::Bytes& raw, const char* label) {
+    if (!radioOnline || !radio.isRadioOnline()) {
+        Serial.println("[SERIAL] lite diag failed: radio offline");
+        return false;
+    }
+    if (raw.empty() || raw.size() > RNODE_DIAG_SINGLE_MTU) {
+        Serial.printf("[SERIAL] lite diag %s rejected: raw len=%u (allowed 1..%u)\n",
+                      label ? label : "packet",
+                      (unsigned)raw.size(),
+                      (unsigned)RNODE_DIAG_SINGLE_MTU);
+        return false;
+    }
+
+    uint8_t rnodeHeader = (uint8_t)(random(256)) & 0xF0;
+    radio.beginPacket();
+    radio.write(rnodeHeader);
+    radio.write(raw.data(), raw.size());
+    bool ok = radio.endPacket();
+    radio.receive();
+    Serial.printf("[SERIAL] lite diag %s TX %s raw=%u air=%u rnode=0x%02X\n",
+                  label ? label : "packet",
+                  ok ? "OK" : "FAILED",
+                  (unsigned)raw.size(),
+                  (unsigned)(raw.size() + 1),
+                  rnodeHeader);
+    return ok;
+}
+
+static RNS::Bytes diagnosticHeader2LinkId(const RNS::Bytes& raw) {
+    RNS::Bytes material;
+    if (raw.empty()) return material;
+
+    material.append((uint8_t)(raw[0] & 0x0F));
+    if (raw.size() > 18) {
+        size_t headerEnd = raw.size() < 35 ? raw.size() : 35;
+        material.append(raw.data() + 18, headerEnd - 18);
+    }
+    if (raw.size() > 35) {
+        size_t payloadLen = raw.size() - 35;
+        if (payloadLen > 64) payloadLen = 64;
+        material.append(raw.data() + 35, payloadLen);
+    }
+
+    return RNS::Identity::full_hash(material).left(16);
+}
+
+static bool buildDiagnosticHeader2(uint8_t packetType, uint8_t context, const RNS::Bytes& destHash,
+                                   const uint8_t* payload, size_t payloadLen, RNS::Bytes& out) {
+    if (destHash.size() != 16) return false;
+    out.clear();
+    out.append((uint8_t)(0x40 | 0x10 | (packetType & 0x03)));  // Header2 + Transport + Single
+    out.append((uint8_t)0x00);                                  // hops
+    out.append(LITE_TRANSPORT_ID, sizeof(LITE_TRANSPORT_ID));
+    out.append(destHash.data(), destHash.size());
+    out.append(context);
+    out.append(payload, payloadLen);
+    return out.size() <= RNODE_DIAG_SINGLE_MTU;
+}
+
+static bool buildDiagnosticLinkPacket(uint8_t packetType, uint8_t context, const uint8_t* payload,
+                                      size_t payloadLen, RNS::Bytes& out) {
+    if (diagnosticLiteLinkId.size() != 16) {
+        Serial.println("[SERIAL] lite link diag failed: send J [dest_hash] first");
+        return false;
+    }
+    out.clear();
+    out.append((uint8_t)(0x0C | (packetType & 0x03)));  // Header1 + Broadcast + Link
+    out.append((uint8_t)0x00);                          // hops
+    out.append(diagnosticLiteLinkId.data(), diagnosticLiteLinkId.size());
+    out.append(context);
+    out.append(payload, payloadLen);
+    return out.size() <= RNODE_DIAG_SINGLE_MTU;
+}
+
+static bool parseSerialContextByte(const char* p, uint8_t defaultContext, uint8_t& context) {
+    p = skipSerialSeparators(p);
+    if (!p || *p == '\0') {
+        context = defaultContext;
+        return true;
+    }
+
+    char* end = nullptr;
+    long parsed = std::strtol(p, &end, 16);
+    if (end == p || parsed < 0 || parsed > 0xFF) {
+        Serial.println("[SERIAL] invalid context; expected one hex byte, for example K0E or YFD");
+        return false;
+    }
+    context = (uint8_t)parsed;
+    return true;
+}
+
+static void fillDiagnosticPayload(uint8_t* payload, size_t len, uint8_t seed) {
+    for (size_t i = 0; i < len; i++) {
+        payload[i] = (uint8_t)(seed + i);
+    }
+}
+
+static bool sendDiagnosticLiteHeader2Data(size_t length, const char* explicitDest) {
+    static constexpr size_t kMaxDiagnosticTransportPayload = 160;
+    if (length == 0 || length > kMaxDiagnosticTransportPayload) {
+        Serial.printf("[SERIAL] usage: H<len> [dest_hash], length 1..%u\n",
+                      (unsigned)kMaxDiagnosticTransportPayload);
+        return false;
+    }
+
+    RNS::Bytes destHash;
+    std::string peerLabel;
+    if (!selectDiagnosticPeer(explicitDest, destHash, peerLabel)) return false;
+
+    uint8_t payload[kMaxDiagnosticTransportPayload];
+    fillDiagnosticPayload(payload, length, 0x48);
+
+    RNS::Bytes raw;
+    if (!buildDiagnosticHeader2(0x00, 0x00, destHash, payload, length, raw)) {
+        Serial.println("[SERIAL] lite Header2 data build failed");
+        return false;
+    }
+
+    Serial.printf("[SERIAL] lite Header2 DATA to Heltec transport, dest=%s payload=%u\n",
+                  peerLabel.c_str(), (unsigned)length);
+    return sendDiagnosticRawReticulum(raw, "H2-DATA");
+}
+
+static bool sendDiagnosticLiteLinkRequest(const char* explicitDest) {
+    RNS::Bytes destHash;
+    std::string peerLabel;
+    if (!selectDiagnosticPeer(explicitDest, destHash, peerLabel)) return false;
+
+    uint8_t payload[64];
+    fillDiagnosticPayload(payload, sizeof(payload), 0xA5);
+
+    RNS::Bytes raw;
+    if (!buildDiagnosticHeader2(0x02, 0x00, destHash, payload, sizeof(payload), raw)) {
+        Serial.println("[SERIAL] lite link request build failed");
+        return false;
+    }
+
+    diagnosticLiteLinkId = diagnosticHeader2LinkId(raw);
+    Serial.printf("[SERIAL] lite LINKREQUEST to Heltec transport, dest=%s link=%s\n",
+                  peerLabel.c_str(), diagnosticLiteLinkId.toHex().c_str());
+    return sendDiagnosticRawReticulum(raw, "LINKREQUEST");
+}
+
+static bool sendDiagnosticLiteLinkData(const char* contextArg) {
+    uint8_t context = 0x0E;  // Channel
+    if (!parseSerialContextByte(contextArg, context, context)) return false;
+
+    uint8_t payload[24];
+    fillDiagnosticPayload(payload, sizeof(payload), context);
+
+    RNS::Bytes raw;
+    if (!buildDiagnosticLinkPacket(0x00, context, payload, sizeof(payload), raw)) {
+        Serial.println("[SERIAL] lite link data build failed");
+        return false;
+    }
+
+    Serial.printf("[SERIAL] lite LINK DATA context=0x%02X link=%s\n",
+                  context, diagnosticLiteLinkId.toHex().c_str());
+    return sendDiagnosticRawReticulum(raw, "LINK-DATA");
+}
+
+static bool sendDiagnosticLiteLinkProof(const char* contextArg) {
+    uint8_t context = 0xFD;  // LinkProof
+    if (!parseSerialContextByte(contextArg, context, context)) return false;
+
+    uint8_t payload[64];
+    fillDiagnosticPayload(payload, sizeof(payload), 0x7A);
+
+    RNS::Bytes raw;
+    if (!buildDiagnosticLinkPacket(0x03, context, payload, sizeof(payload), raw)) {
+        Serial.println("[SERIAL] lite link proof build failed");
+        return false;
+    }
+
+    Serial.printf("[SERIAL] lite LINK PROOF context=0x%02X link=%s\n",
+                  context, diagnosticLiteLinkId.toHex().c_str());
+    return sendDiagnosticRawReticulum(raw, "LINK-PROOF");
+}
+
 static void handleSerialLineCommand(const char* line) {
     if (!line || !*line) return;
 
-    switch (line[0]) {
+    switch ((char)std::toupper((unsigned char)line[0])) {
         case 'F': {
             long value = 0;
             if (!parseSerialLong(line + 1, value) || value < 0) {
@@ -726,6 +912,28 @@ static void handleSerialLineCommand(const char* line) {
             sendDiagnosticLxmf((size_t)length, rest);
             break;
         }
+        case 'H': {
+            long length = 0;
+            const char* rest = nullptr;
+            if (!parseSerialLong(line + 1, length, &rest) || length <= 0) {
+                Serial.println("[SERIAL] usage: H<len> [dest_hash], for example H32 2db8...");
+                return;
+            }
+            sendDiagnosticLiteHeader2Data((size_t)length, rest);
+            break;
+        }
+        case 'J': {
+            sendDiagnosticLiteLinkRequest(line + 1);
+            break;
+        }
+        case 'K': {
+            sendDiagnosticLiteLinkData(line + 1);
+            break;
+        }
+        case 'Y': {
+            sendDiagnosticLiteLinkProof(line + 1);
+            break;
+        }
         default:
             Serial.printf("[SERIAL] unknown line command '%c'\n", line[0]);
             break;
@@ -735,6 +943,7 @@ static void handleSerialLineCommand(const char* line) {
 static void printSerialHelp() {
     Serial.println("[SERIAL] commands: ? help | a announce | t raw-test | d diag | r rssi | i irq | p tx-power-cycle | m min-power | q iq | +/- freq");
     Serial.println("[SERIAL] line commands: F<hz> exact-frequency | P<dBm> exact-tx-power | L<len> [dest_hash] LXMF test");
+    Serial.println("[SERIAL] lite relay diag: H<len> [dest] Header2 data | J [dest] linkreq | K<ctx_hex> link-data | Y<ctx_hex> link-proof");
 }
 
 static void handleSerialCommands() {
@@ -763,7 +972,7 @@ static void handleSerialCommands() {
         }
 
         if (c == '\r' || c == '\n' || c == ' ' || c == '\t') continue;
-        if (c == 'F' || c == 'P' || c == 'L') {
+        if (c == 'F' || c == 'P' || c == 'L' || c == 'H' || c == 'J' || c == 'K' || c == 'Y') {
             lineActive = true;
             lineLen = 0;
             line[lineLen++] = c;

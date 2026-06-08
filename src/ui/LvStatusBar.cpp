@@ -49,7 +49,7 @@ void LvStatusBar::create(lv_obj_t* parent) {
     // Right: battery percentage.
     _lblBatt = lv_label_create(_bar);
     lv_obj_set_size(_lblBatt, kBattW, Theme::STATUS_BAR_H);
-    lv_obj_set_style_text_font(_lblBatt, &lv_font_ratdeck_10, 0);
+    lv_obj_set_style_text_font(_lblBatt, &lv_font_ratdeck_12, 0);
     lv_obj_set_style_text_align(_lblBatt, LV_TEXT_ALIGN_RIGHT, 0);
     lv_label_set_long_mode(_lblBatt, LV_LABEL_LONG_CLIP);
     lv_obj_align(_lblBatt, LV_ALIGN_RIGHT_MID, -4, 0);

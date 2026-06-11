@@ -97,7 +97,7 @@ void td_poll_touch() {
 
 void td_ui_init() {
   if (td_ui_ready) return;
-  display.setRotation(1);
+  display.setRotation(3);
   display.fillScreen(TD_CLR_BG);
   td_canvas = new GFXcanvas16(TD_W, TD_H);
   for (int i = 0; i < TD_WF_SIZE; i++) td_waterfall[i] = 0;

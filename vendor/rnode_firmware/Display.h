@@ -1746,6 +1746,10 @@ void cp_render_frame() {
 }
 #endif
 
+#if BOARD_MODEL == BOARD_TDECK
+  #include "TDeckUI.h"
+#endif
+
 bool epd_blanked = false;
 #if BOARD_MODEL == BOARD_TECHO
   void epd_blank(bool full_update = true) {
@@ -1763,6 +1767,9 @@ bool epd_blanked = false;
 
 void update_display(bool blank = false) {
   display_updating = true;
+  #if BOARD_MODEL == BOARD_TDECK
+    if (td_ui_ready) td_poll_touch();
+  #endif
   if (blank == true) {
     last_disp_update = millis()-disp_update_interval-1;
   } else {
@@ -1811,11 +1818,11 @@ void update_display(bool blank = false) {
       #elif BOARD_MODEL == BOARD_CARDPUTER_ADV
         m5canvas.fillSprite(SSD1306_BLACK);
         m5canvas.pushSprite(0, 0);
-      #elif BOARD_MODEL != BOARD_TDECK && BOARD_MODEL != BOARD_TECHO
+      #elif BOARD_MODEL == BOARD_TDECK
+        display.fillScreen(SSD1306_BLACK);
+      #elif BOARD_MODEL != BOARD_TECHO
         display.clearDisplay();
         display.display();
-      #else
-        // TODO: Clear screen
       #endif
 
       display_blank_frame_drawn = true;
@@ -1856,6 +1863,8 @@ void update_display(bool blank = false) {
 
         #if BOARD_MODEL == BOARD_CARDPUTER_ADV
           cp_render_frame();
+        #elif BOARD_MODEL == BOARD_TDECK
+          td_render_frame();
         #else
           update_stat_area();
           update_disp_area();
@@ -1871,6 +1880,8 @@ void update_display(bool blank = false) {
         }
       #elif BOARD_MODEL == BOARD_CARDPUTER_ADV
         m5canvas.pushSprite(0, 0);
+      #elif BOARD_MODEL == BOARD_TDECK
+        td_push_frame();
       #elif BOARD_MODEL != BOARD_TDECK
         display.display();
       #endif

@@ -35,7 +35,7 @@ CARDPUTER_ADV_EXTRA_FLAGS = \"-DBOARD_MODEL=0x43\" \"-DCARDPUTER_ADV_DEFAULT_FRE
 
 # T-Deck (Plus) dual-boot build — same staging pattern as the Cardputer Adv.
 # Defaults reuse the CARDPUTER_ADV_DEFAULT_* fallbacks in Utilities.h.
-TDECK_FQBN = esp32:esp32:esp32s3:CDCOnBoot=cdc,USBMode=hwcdc,FlashSize=16M,FlashMode=dio,PartitionScheme=no_ota
+TDECK_FQBN = esp32:esp32:esp32s3:CDCOnBoot=cdc,USBMode=hwcdc,FlashSize=16M,FlashMode=dio,PartitionScheme=no_ota,PSRAM=opi
 TDECK_SKETCH = build/tdeck_sketch/RNode_Firmware
 TDECK_BUILD = build/tdeck_build
 TDECK_OUTPUT = build/tdeck.esp32.esp32s3

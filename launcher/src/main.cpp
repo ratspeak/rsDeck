@@ -222,8 +222,6 @@ void showBooting(const char *label, bool rnode) {
   display.print("Starting...");
   if (rnode) {
     display.setCursor(30, 134);
-    display.print("Screen stays off in RNode mode.");
-    display.setCursor(30, 148);
     display.print("Reset the device to return here.");
   }
 }

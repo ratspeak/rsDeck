@@ -575,7 +575,8 @@
       #define HAS_BUSY true
       #define HAS_TCXO true
 
-      #define HAS_DISPLAY false
+      // Display on for the rsDeck dual-boot build: node ID, waterfall, BLE pairing PIN.
+      #define HAS_DISPLAY true
       #define HAS_CONSOLE false
       #define HAS_WIFI true
       #define HAS_BLUETOOTH false

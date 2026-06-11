@@ -470,6 +470,7 @@ bool display_init() {
     #elif BOARD_MODEL == BOARD_TDECK
     display.init(240, 320);
     display.setSPISpeed(80e6);
+    if (false) {
     #elif BOARD_MODEL == BOARD_HELTEC_T114
     display.init();
     // set white as default pixel colour for Heltec T114

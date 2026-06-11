@@ -192,6 +192,8 @@ char bt_devname[11];
     bool bt_setup_hw(); void bt_security_setup();
     BLESecurity *ble_security = new BLESecurity();
     bool ble_authenticated = false;
+    // True only while a fresh SMP passkey exchange is in flight this session.
+    bool ble_fresh_smp = false;
     uint32_t pairing_pin = 0;
 
     void bt_flush() { if (bt_state == BT_STATE_CONNECTED) { SerialBT.flush(); } }
@@ -268,12 +270,15 @@ char bt_devname[11];
       display_unblank();
       bt_allow_pairing = false;
       bt_ssp_pin = 0;
-      bt_state = BT_STATE_ON;
+      // Window expiry while a host is connected must not drop CONNECTED —
+      // update_bt() only flushes the TX buffer in that state.
+      bt_state = SerialBT.connected() ? BT_STATE_CONNECTED : BT_STATE_ON;
     }
 
     void bt_passkey_notify_callback(uint32_t passkey) {
       // Serial.printf("Got passkey notification: %d\n", passkey);
       if (bt_allow_pairing) {
+        ble_fresh_smp = true;
         bt_ssp_pin = passkey;
         bt_pairing_started = millis();
         kiss_indicate_btpin();
@@ -318,7 +323,10 @@ char bt_devname[11];
       if (auth_result.success == true) {
         // Serial.println("Authentication success");
         ble_authenticated = true;
-        if (bt_state == BT_STATE_PAIRING) {
+        // Disconnect-after-pair applies only to a fresh SMP exchange (passkey
+        // ran). A bonded host re-encrypting while the pairing window happens
+        // to be armed must stay connected, or a live session gets dropped.
+        if (bt_state == BT_STATE_PAIRING && ble_fresh_smp) {
           // Serial.println("Pairing complete, disconnecting");
           delay(2000); SerialBT.disconnect();
         } else { bt_state = BT_STATE_CONNECTED; }
@@ -331,6 +339,7 @@ char bt_devname[11];
       }
       bt_allow_pairing = false;
       bt_ssp_pin = 0;
+      ble_fresh_smp = false;
     }
 
     void bt_connect_callback(BLEServer *server) {

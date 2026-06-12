@@ -42,6 +42,9 @@ public:
     // Force full redraw
     void forceRedraw();
 
+    // Re-apply palette to shared styles and persistent shell after a theme switch
+    void applyTheme();
+
     // Handle key event — routes to current screen
     bool handleKey(const KeyEvent& event);
     bool handleLongPress();

@@ -203,6 +203,13 @@ void LvStatusBar::setUse24Hour(bool use24h) {
     updateTime();
 }
 
+void LvStatusBar::applyTheme() {
+    if (_lblToast) lv_obj_set_style_text_color(_lblToast, lv_color_hex(Theme::BG), 0);
+    refreshIndicators();
+    refreshBattery();
+    refreshTimeColor();
+}
+
 void LvStatusBar::refreshIndicators() {
     if (!_lblLinks) return;
 

@@ -24,6 +24,7 @@
 #include "input/InputManager.h"
 #include "input/HotkeyManager.h"
 #include "ui/UIManager.h"
+#include "ui/Theme.h"
 #include "ui/LvTabBar.h"
 #include "ui/LvInput.h"
 #include "ui/screens/LvBootScreen.h"
@@ -1106,6 +1107,8 @@ void setup() {
     } else {
         Serial.println("[BOOT] Early flash mount failed; using default radio config");
     }
+    // Select palette before any LVGL styles are built
+    Theme::setScheme(userConfig.settings().themeLight ? Theme::Scheme::LIGHT : Theme::Scheme::DARK);
 
     // Step 4: Radio + SD init BEFORE display
     // Radio and SD must init while SPIClass exclusively owns SPI2_HOST.
@@ -1250,6 +1253,11 @@ void setup() {
 
     lvBootScreen.setProgress(0.64f, "Loading config...");
     userConfig.load(sdStore, flash);
+    // SD config may override the early flash-only load; re-sync palette
+    {
+        Theme::Scheme want = userConfig.settings().themeLight ? Theme::Scheme::LIGHT : Theme::Scheme::DARK;
+        if (want != Theme::scheme()) { Theme::setScheme(want); ui.applyTheme(); }
+    }
     inputManager.setTrackballSpeed(userConfig.settings().trackballSpeed);
     applyRadioSettingsToHardware(userConfig.settings(), "BOOT PRE-RNS");
 

@@ -212,6 +212,12 @@ void init(Keyboard* kb, Trackball* tb, TouchInput* touch) {
     Serial.println("[LVGL] Input drivers registered (touch enabled)");
 }
 
+void applyTheme() {
+    if (!s_cursor) return;
+    lv_obj_set_style_bg_color(s_cursor, lv_color_hex(Theme::BG), 0);
+    lv_obj_set_style_outline_color(s_cursor, lv_color_hex(Theme::PRIMARY), 0);
+}
+
 void feedKey(const KeyEvent& evt) {
     uint32_t key = 0;
 

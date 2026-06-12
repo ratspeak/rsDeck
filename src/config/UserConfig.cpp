@@ -78,6 +78,7 @@ bool UserConfig::parseJson(const String& json) {
     if (rawBri > 100) rawBri = rawBri * 100 / 255;  // Migrate from PWM to percentage
     _settings.brightness = constrain(rawBri, 1, 100);
     _settings.denseFontMode    = doc["dense_font"] | false;
+    _settings.themeLight       = doc["theme_light"] | false;
     _settings.keyboardBrightness = constrain(doc["kb_brightness"] | 100, 0, 100);
     _settings.keyboardAutoOn     = doc["kb_auto_on"] | false;
     _settings.keyboardAutoOff    = doc["kb_auto_off"] | false;
@@ -150,6 +151,7 @@ String UserConfig::serializeToJson() const {
     doc["screen_off"] = _settings.screenOffTimeout;
     doc["brightness"] = _settings.brightness;
     doc["dense_font"] = _settings.denseFontMode;
+    doc["theme_light"] = _settings.themeLight;
     doc["kb_brightness"] = _settings.keyboardBrightness;
     doc["kb_auto_on"] = _settings.keyboardAutoOn;
     doc["kb_auto_off"] = _settings.keyboardAutoOff;

@@ -7,6 +7,9 @@ namespace LvTheme {
 
 void init(lv_disp_t* disp);
 
+// Re-apply palette colors to all shared styles after a Theme scheme change.
+void refresh();
+
 // Style accessors - existing (16)
 lv_style_t* styleScreen();
 lv_style_t* styleLabel();

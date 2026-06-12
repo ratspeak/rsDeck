@@ -56,6 +56,7 @@ struct UserSettings {
     uint16_t screenOffTimeout = 60;   // seconds
     uint8_t brightness = 100;  // Percentage 1-100
     bool denseFontMode = false;       // T-Deck Plus: adaptive font toggle
+    bool themeLight = false;          // false = dark (original palette)
 
     // Keyboard
     uint8_t keyboardBrightness = 100; // Percentage 0-100 (0 = off)

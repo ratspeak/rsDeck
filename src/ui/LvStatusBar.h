@@ -26,6 +26,9 @@ public:
     void setUse24Hour(bool use24h);
     void updateTime();   // Call at 1 Hz to refresh clock
 
+    // Re-apply palette-dependent local colors after a theme switch
+    void applyTheme();
+
     lv_obj_t* obj() { return _bar; }
 
 private:

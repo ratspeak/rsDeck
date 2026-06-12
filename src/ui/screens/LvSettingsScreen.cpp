@@ -480,6 +480,17 @@ void LvSettingsScreen::buildItems() {
         [&s]() { return s.brightness; }, [&s](int v) { s.brightness = v; },
         [](int v) { return String(v) + "%"; }, 5, 100, 5});
     idx++;
+    {
+        SettingItem themeItem;
+        themeItem.label = "Theme";
+        themeItem.type = SettingType::ENUM_CHOICE;
+        themeItem.getter = [&s]() { return s.themeLight ? 1 : 0; };
+        themeItem.setter = [&s](int v) { s.themeLight = (v != 0); };
+        themeItem.minVal = 0; themeItem.maxVal = 1; themeItem.step = 1;
+        themeItem.enumLabels = {"Dark", "Light"};
+        _items.push_back(themeItem);
+        idx++;
+    }
     _items.push_back({"Dim After", SettingType::INTEGER,
         [&s]() { return s.screenDimTimeout; }, [&s](int v) { s.screenDimTimeout = v; },
         [](int v) { return String(v) + "s"; }, 5, 300, 5});
@@ -2024,6 +2035,15 @@ String LvSettingsScreen::freqFormatWithCursor() const {
 void LvSettingsScreen::applyAndSave() {
     if (!_cfg) return;
     auto& s = _cfg->settings();
+    // Theme switch applies live: palette globals -> shared styles -> shell.
+    // Our own rows re-read Theme:: on the rebuild that follows every commit.
+    Theme::Scheme want = s.themeLight ? Theme::Scheme::LIGHT : Theme::Scheme::DARK;
+    if (want != Theme::scheme()) {
+        Theme::setScheme(want);
+        if (_ui) _ui->applyTheme();
+        if (_screen) lv_obj_set_style_bg_color(_screen, lv_color_hex(Theme::BG), 0);
+        if (_scrollContainer) lv_obj_set_style_bg_color(_scrollContainer, lv_color_hex(Theme::BG), 0);
+    }
     if (_power) {
         _power->setBrightness(s.brightness);
         _power->setDimTimeout(s.screenDimTimeout);

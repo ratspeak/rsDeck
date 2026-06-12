@@ -18,4 +18,7 @@ void feedKey(const KeyEvent& evt);
 // Get the LVGL input group (for focusing widgets)
 lv_group_t* group();
 
+// Re-apply palette colors to the touch cursor after a theme switch
+void applyTheme();
+
 }  // namespace LvInput

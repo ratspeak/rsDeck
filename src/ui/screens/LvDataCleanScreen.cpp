@@ -38,7 +38,7 @@ void styleChoice(lv_obj_t* box, bool selected, bool destructive, bool armed) {
     if (!box) return;
     uint32_t border = selected ? (destructive && armed ? Theme::ERROR_CLR : Theme::PRIMARY) : Theme::BORDER;
     uint32_t bg = selected ? Theme::PRIMARY_SUBTLE : Theme::BG_ELEVATED;
-    if (destructive && armed) bg = 0x2A0E0E;
+    if (destructive && armed) bg = Theme::ERROR_SUBTLE;
     lv_obj_set_style_bg_color(box, lv_color_hex(bg), 0);
     lv_obj_set_style_border_color(box, lv_color_hex(border), 0);
     lv_obj_set_style_border_width(box, selected ? 2 : 1, 0);

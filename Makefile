@@ -1,4 +1,4 @@
-STANDALONE_ENV ?= ratdeck_915
+STANDALONE_ENV ?= rsdeck_915
 RNODE_DIR ?= vendor/rnode_firmware
 LAUNCHER_DIR ?= launcher
 BUILD_DIR ?= build
@@ -10,8 +10,8 @@ PARTITIONS_BIN := $(BUILD_DIR)/rsdeck_16mb_dual_partitions.bin
 FULL_NAME := rsdeck-full
 STANDALONE_NAME := rsdeck-standalone
 RNODE_ONLY_NAME := rsdeck-rnode
-APP_STANDALONE_NAME := rsdeck-standalone-app
-APP_RNODE_NAME := rsdeck-rnode-app
+M5LAUNCHER_STANDALONE_NAME := rsdeck-standalone-m5launcher
+M5LAUNCHER_RNODE_NAME := rsdeck-rnode-m5launcher
 
 FULL_BIN := $(BUILD_DIR)/$(FULL_NAME).bin
 STANDALONE_BIN := $(BUILD_DIR)/$(STANDALONE_NAME).bin
@@ -19,7 +19,7 @@ RNODE_ONLY_BIN := $(BUILD_DIR)/$(RNODE_ONLY_NAME).bin
 
 LAUNCHER_BIN := $(LAUNCHER_DIR)/.pio/build/tdeck_launcher/firmware.bin
 STANDALONE_APP_BIN := .pio/build/$(STANDALONE_ENV)/firmware.bin
-STANDALONE_FACTORY_BIN := ratdeck-merged.bin
+STANDALONE_FACTORY_BIN := rsdeck-merged.bin
 
 RNODE_OUTPUT := $(RNODE_DIR)/build/tdeck.esp32.esp32s3
 RNODE_BIN := $(RNODE_OUTPUT)/RNode_Firmware.ino.bin
@@ -90,11 +90,18 @@ bundle: full-image
 
 package: full-image standalone-image rnode-only-image
 	mkdir -p $(DIST_DIR)
+	rm -f $(DIST_DIR)/$(FULL_NAME).zip \
+	      $(DIST_DIR)/$(STANDALONE_NAME).zip \
+	      $(DIST_DIR)/$(RNODE_ONLY_NAME).zip \
+	      $(DIST_DIR)/$(M5LAUNCHER_STANDALONE_NAME).bin \
+	      $(DIST_DIR)/$(M5LAUNCHER_RNODE_NAME).bin \
+	      $(DIST_DIR)/rsdeck-standalone-app.bin \
+	      $(DIST_DIR)/rsdeck-rnode-app.bin
 	python3 tools/package_merged_zip.py --image $(FULL_BIN) --name $(FULL_NAME) --output $(DIST_DIR)/$(FULL_NAME).zip
 	python3 tools/package_merged_zip.py --image $(STANDALONE_BIN) --name $(STANDALONE_NAME) --output $(DIST_DIR)/$(STANDALONE_NAME).zip
 	python3 tools/package_merged_zip.py --image $(RNODE_ONLY_BIN) --name $(RNODE_ONLY_NAME) --output $(DIST_DIR)/$(RNODE_ONLY_NAME).zip
-	cp $(STANDALONE_APP_BIN) $(DIST_DIR)/$(APP_STANDALONE_NAME).bin
-	cp $(RNODE_BIN) $(DIST_DIR)/$(APP_RNODE_NAME).bin
+	cp $(STANDALONE_APP_BIN) $(DIST_DIR)/$(M5LAUNCHER_STANDALONE_NAME).bin
+	cp $(RNODE_BIN) $(DIST_DIR)/$(M5LAUNCHER_RNODE_NAME).bin
 
 release: package
 
@@ -102,4 +109,4 @@ flash: bundle
 	python3 -m esptool --chip esp32s3 --port $(PORT) --baud 460800 --before default_reset --after hard_reset write-flash 0x0 $(FULL_BIN)
 
 clean:
-	rm -rf $(BUILD_DIR) $(DIST_DIR)
+	rm -rf $(BUILD_DIR) $(DIST_DIR) $(STANDALONE_FACTORY_BIN)

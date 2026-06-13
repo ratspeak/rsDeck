@@ -15,7 +15,7 @@ def merge_bin(source, target, env):
     framework_dir = env.PioPlatform().get_package_dir("framework-arduinoespressif32")
     boot_app0 = os.path.join(framework_dir, "tools", "partitions", "boot_app0.bin")
 
-    output = os.path.join(project_dir, "ratdeck-merged.bin")
+    output = os.path.join(project_dir, "rsdeck-merged.bin")
 
     python = env.subst("$PYTHONEXE")
     env.Execute(

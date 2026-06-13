@@ -32,7 +32,7 @@ void LvStatusBar::create(lv_obj_t* parent) {
     _lblTime = lv_label_create(_bar);
     lv_obj_set_size(_lblTime, kTimeW, Theme::STATUS_BAR_H);
     lv_label_set_long_mode(_lblTime, LV_LABEL_LONG_CLIP);
-    lv_obj_set_style_text_font(_lblTime, &lv_font_ratdeck_12, 0);
+    lv_obj_set_style_text_font(_lblTime, &lv_font_rsdeck_12, 0);
     lv_obj_set_style_text_align(_lblTime, LV_TEXT_ALIGN_LEFT, 0);
     lv_label_set_text(_lblTime, "--:--");
     lv_obj_align(_lblTime, LV_ALIGN_LEFT_MID, 4, 0);
@@ -42,14 +42,14 @@ void LvStatusBar::create(lv_obj_t* parent) {
     lv_obj_set_size(_lblLinks, kLinksW, Theme::STATUS_BAR_H);
     lv_label_set_long_mode(_lblLinks, LV_LABEL_LONG_CLIP);
     lv_label_set_recolor(_lblLinks, true);
-    lv_obj_set_style_text_font(_lblLinks, &lv_font_ratdeck_10, 0);
+    lv_obj_set_style_text_font(_lblLinks, &lv_font_rsdeck_10, 0);
     lv_obj_set_style_text_align(_lblLinks, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(_lblLinks, LV_ALIGN_LEFT_MID, kLinksX, 0);
 
     // Right: battery percentage.
     _lblBatt = lv_label_create(_bar);
     lv_obj_set_size(_lblBatt, kBattW, Theme::STATUS_BAR_H);
-    lv_obj_set_style_text_font(_lblBatt, &lv_font_ratdeck_10, 0);
+    lv_obj_set_style_text_font(_lblBatt, &lv_font_rsdeck_10, 0);
     lv_obj_set_style_text_align(_lblBatt, LV_TEXT_ALIGN_RIGHT, 0);
     lv_label_set_long_mode(_lblBatt, LV_LABEL_LONG_CLIP);
     lv_obj_align(_lblBatt, LV_ALIGN_RIGHT_MID, -4, 0);
@@ -66,7 +66,7 @@ void LvStatusBar::create(lv_obj_t* parent) {
     _lblToast = lv_label_create(_toast);
     lv_obj_set_width(_lblToast, Theme::SCREEN_W - 12);
     lv_label_set_long_mode(_lblToast, LV_LABEL_LONG_DOT);
-    lv_obj_set_style_text_font(_lblToast, &lv_font_ratdeck_12, 0);
+    lv_obj_set_style_text_font(_lblToast, &lv_font_rsdeck_12, 0);
     lv_obj_set_style_text_color(_lblToast, lv_color_hex(Theme::BG), 0);
     lv_obj_set_style_text_align(_lblToast, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_center(_lblToast);

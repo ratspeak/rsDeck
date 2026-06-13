@@ -84,13 +84,13 @@ lv_obj_t* createEmptyState(lv_obj_t* parent) {
     lv_obj_clear_flag(shoulders, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t* title = lv_label_create(box);
-    lv_obj_set_style_text_font(title, &lv_font_ratdeck_14, 0);
+    lv_obj_set_style_text_font(title, &lv_font_rsdeck_14, 0);
     lv_obj_set_style_text_color(title, lv_color_hex(Theme::TEXT_SECONDARY), 0);
     lv_label_set_text(title, "No trusted contacts");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 49);
 
     lv_obj_t* hint = lv_label_create(box);
-    lv_obj_set_style_text_font(hint, &lv_font_ratdeck_10, 0);
+    lv_obj_set_style_text_font(hint, &lv_font_rsdeck_10, 0);
     lv_obj_set_style_text_color(hint, lv_color_hex(Theme::TEXT_MUTED), 0);
     lv_label_set_text(hint, "Saved peers appear here");
     lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 70);
@@ -194,13 +194,13 @@ void LvContactsScreen::rebuildList() {
         }, LV_EVENT_FOCUSED, nullptr);
 
         lv_obj_t* qrLbl = lv_label_create(qrRow);
-        lv_obj_set_style_text_font(qrLbl, &lv_font_ratdeck_14, 0);
+        lv_obj_set_style_text_font(qrLbl, &lv_font_rsdeck_14, 0);
         lv_obj_set_style_text_color(qrLbl, lv_color_hex(Theme::ACCENT), 0);
         lv_label_set_text(qrLbl, "Share My QR");
         lv_obj_align(qrLbl, LV_ALIGN_LEFT_MID, 12, 0);
 
         lv_obj_t* hintLbl = lv_label_create(qrRow);
-        lv_obj_set_style_text_font(hintLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(hintLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(hintLbl, lv_color_hex(Theme::TEXT_MUTED), 0);
         lv_label_set_text(hintLbl, "Enter");
         lv_obj_align(hintLbl, LV_ALIGN_RIGHT_MID, -12, 0);
@@ -247,7 +247,7 @@ void LvContactsScreen::rebuildList() {
         LxmFaceAvatar::render(avatar.canvas, String(hashHex.c_str()));
 
         lv_obj_t* nameLbl = lv_label_create(row);
-        lv_obj_set_style_text_font(nameLbl, &lv_font_ratdeck_14, 0);
+        lv_obj_set_style_text_font(nameLbl, &lv_font_rsdeck_14, 0);
         lv_obj_set_style_text_color(nameLbl, lv_color_hex(Theme::ACCENT), 0);
         lv_label_set_long_mode(nameLbl, LV_LABEL_LONG_CLIP);
         lv_obj_set_width(nameLbl, Theme::CONTENT_W - kContactTextX - 72);
@@ -256,7 +256,7 @@ void LvContactsScreen::rebuildList() {
         lv_obj_set_pos(nameLbl, kContactTextX, 2);
 
         lv_obj_t* metaLbl = lv_label_create(row);
-        lv_obj_set_style_text_font(metaLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(metaLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(metaLbl, lv_color_hex(Theme::TEXT_SECONDARY), 0);
         lv_obj_set_style_text_align(metaLbl, LV_TEXT_ALIGN_RIGHT, 0);
         lv_label_set_long_mode(metaLbl, LV_LABEL_LONG_CLIP);
@@ -266,7 +266,7 @@ void LvContactsScreen::rebuildList() {
         lv_obj_set_pos(metaLbl, Theme::CONTENT_W - 72, 5);
 
         lv_obj_t* idLbl = lv_label_create(row);
-        lv_obj_set_style_text_font(idLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(idLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(idLbl, lv_color_hex(Theme::TEXT_MUTED), 0);
         lv_label_set_long_mode(idLbl, LV_LABEL_LONG_CLIP);
         lv_obj_set_width(idLbl, Theme::CONTENT_W - kContactTextX - 8);

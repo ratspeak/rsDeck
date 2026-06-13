@@ -1,6 +1,6 @@
 #include "Theme.h"
 
-// Dark column is the original Ratdeck palette, verbatim. Light column is
+// Dark column is the original rsDeck palette, verbatim. Light column is
 // derived: same hue family, brand greens/cyan darkened for light-bg contrast.
 #define THEME_COLORS(X) \
     X(BG,             0x05080A, 0xF2F6F4) \

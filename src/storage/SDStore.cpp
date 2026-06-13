@@ -176,9 +176,9 @@ String SDStore::readString(const char* path) {
     return result;
 }
 
-bool SDStore::wipeRatdeck() {
+bool SDStore::wipeRsDeck() {
     if (!_ready) return false;
-    Serial.println("[SD] Wiping /ratdeck/ ...");
+    Serial.println("[SD] Wiping rsDeck legacy /ratdeck/ data ...");
     wipeDir("/ratdeck/messages");
     wipeDir("/ratdeck/contacts");
     wipeDir("/ratdeck/identity");
@@ -186,7 +186,7 @@ bool SDStore::wipeRatdeck() {
     wipeDir("/ratdeck/transport");
     SD.rmdir("/ratdeck");
     Serial.println("[SD] Wipe complete, recreating dirs...");
-    return formatForRatdeck();
+    return formatForRsDeck();
 }
 
 void SDStore::wipeDir(const char* path) {
@@ -221,9 +221,9 @@ bool SDStore::hasExistingData() {
     return false;
 }
 
-bool SDStore::formatForRatdeck() {
+bool SDStore::formatForRsDeck() {
     if (!_ready) return false;
-    Serial.println("[SD] Creating Ratdeck directory structure...");
+    Serial.println("[SD] Creating rsDeck legacy /ratdeck/ directory structure...");
     bool ok = true;
     ok &= ensureDir("/ratdeck");
     ok &= ensureDir("/ratdeck/config");

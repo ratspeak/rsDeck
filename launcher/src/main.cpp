@@ -187,8 +187,6 @@ void drawScreen() {
   display.setTextColor(kMuted, kBg);
   display.setCursor(24, 196);
   display.print("Trackball or W/S select, click/Enter boot");
-  display.setCursor(24, 212);
-  display.print("Touch: tap card, tap again to boot   R/N quick");
 
   drawCountdown(true);
 }
@@ -209,7 +207,7 @@ void pauseAutoBoot() {
   drawCountdown(true);
 }
 
-void showBooting(const char *label, bool rnode) {
+void showBooting(const char *label) {
   booting = true;
   display.fillScreen(kBg);
   display.setTextSize(3);
@@ -220,10 +218,6 @@ void showBooting(const char *label, bool rnode) {
   display.setTextColor(kMuted, kBg);
   display.setCursor(30, 110);
   display.print("Starting...");
-  if (rnode) {
-    display.setCursor(30, 134);
-    display.print("Reset the device to return here.");
-  }
 }
 
 void showError(const char *message) {
@@ -244,7 +238,7 @@ void startChoice(Choice choice) {
 
   FirmwareMode mode = choice == Choice::Standalone ? FirmwareMode::Standalone : FirmwareMode::RNode;
   Serial.printf("[LAUNCHER] booting %s\n", mode_name(mode));
-  showBooting(mode_name(mode), mode == FirmwareMode::RNode);
+  showBooting(mode_name(mode));
   SwitchResult result = set_next_boot(mode);
   if (!result.ok) {
     Serial.printf("[LAUNCHER] boot switch failed: %s\n", result.message);

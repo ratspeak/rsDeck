@@ -61,7 +61,7 @@ void LvDataCleanScreen::createUI(lv_obj_t* parent) {
     _selectedYes = false;
     _confirmWipe = false;
 
-    lv_obj_t* eyebrow = makeLabel(parent, "STORAGE CHECK", &lv_font_ratdeck_10,
+    lv_obj_t* eyebrow = makeLabel(parent, "STORAGE CHECK", &lv_font_rsdeck_10,
                                   Theme::TEXT_SECONDARY, 220, LV_TEXT_ALIGN_CENTER,
                                   LV_LABEL_LONG_DOT);
     lv_obj_align(eyebrow, LV_ALIGN_TOP_MID, 0, 10);
@@ -72,17 +72,17 @@ void LvDataCleanScreen::createUI(lv_obj_t* parent) {
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 28);
 
     lv_obj_t* msg = makeLabel(parent,
-        "Ratdeck found older data on the SD card.",
-        &lv_font_ratdeck_12, Theme::TEXT_PRIMARY, 268, LV_TEXT_ALIGN_CENTER);
+        "rsDeck found older data on the SD card.",
+        &lv_font_rsdeck_12, Theme::TEXT_PRIMARY, 268, LV_TEXT_ALIGN_CENTER);
     lv_obj_align(msg, LV_ALIGN_TOP_MID, 0, 58);
 
     lv_obj_t* prompt = makeLabel(parent,
         "Keeping data is safest. Erase only for a clean setup.",
-        &lv_font_ratdeck_12, Theme::TEXT_SECONDARY, 276, LV_TEXT_ALIGN_CENTER);
+        &lv_font_rsdeck_12, Theme::TEXT_SECONDARY, 276, LV_TEXT_ALIGN_CENTER);
     lv_obj_align(prompt, LV_ALIGN_TOP_MID, 0, 82);
 
     _noBox = makeChoice(parent, 28, 122);
-    _noLabel = makeLabel(_noBox, "KEEP DATA", &lv_font_ratdeck_12,
+    _noLabel = makeLabel(_noBox, "KEEP DATA", &lv_font_rsdeck_12,
                          Theme::TEXT_PRIMARY, 112, LV_TEXT_ALIGN_CENTER,
                          LV_LABEL_LONG_DOT);
     lv_obj_center(_noLabel);
@@ -96,7 +96,7 @@ void LvDataCleanScreen::createUI(lv_obj_t* parent) {
     }, LV_EVENT_CLICKED, this);
 
     _yesBox = makeChoice(parent, 166, 122);
-    _yesLabel = makeLabel(_yesBox, "ERASE", &lv_font_ratdeck_12,
+    _yesLabel = makeLabel(_yesBox, "ERASE", &lv_font_rsdeck_12,
                           Theme::TEXT_PRIMARY, 112, LV_TEXT_ALIGN_CENTER,
                           LV_LABEL_LONG_DOT);
     lv_obj_center(_yesLabel);
@@ -112,26 +112,26 @@ void LvDataCleanScreen::createUI(lv_obj_t* parent) {
         if (self->_doneCb) self->_doneCb(true);
     }, LV_EVENT_CLICKED, this);
 
-    _confirmLabel = makeLabel(parent, "", &lv_font_ratdeck_12,
+    _confirmLabel = makeLabel(parent, "", &lv_font_rsdeck_12,
                               Theme::WARNING_CLR, 280, LV_TEXT_ALIGN_CENTER);
     lv_obj_align(_confirmLabel, LV_ALIGN_TOP_MID, 0, 164);
 
     _hintLabel = makeLabel(parent, "Left/Right choose  Enter continues",
-                           &lv_font_ratdeck_12, Theme::ACCENT,
+                           &lv_font_rsdeck_12, Theme::ACCENT,
                            286, LV_TEXT_ALIGN_CENTER, LV_LABEL_LONG_DOT);
     lv_obj_align(_hintLabel, LV_ALIGN_TOP_MID, 0, 188);
 
-    _statusLabel = makeLabel(parent, "", &lv_font_ratdeck_12,
+    _statusLabel = makeLabel(parent, "", &lv_font_rsdeck_12,
                              Theme::PRIMARY, 286, LV_TEXT_ALIGN_CENTER);
     lv_obj_align(_statusLabel, LV_ALIGN_TOP_MID, 0, 140);
     lv_obj_add_flag(_statusLabel, LV_OBJ_FLAG_HIDDEN);
     updateSelection();
 
-    lv_obj_t* ver = makeLabel(parent, "", &lv_font_ratdeck_10,
+    lv_obj_t* ver = makeLabel(parent, "", &lv_font_rsdeck_10,
                               Theme::TEXT_MUTED, 120, LV_TEXT_ALIGN_CENTER,
                               LV_LABEL_LONG_DOT);
     char verBuf[32];
-    snprintf(verBuf, sizeof(verBuf), "v%s", RATDECK_VERSION_STRING);
+    snprintf(verBuf, sizeof(verBuf), "v%s", RSDECK_VERSION_STRING);
     lv_label_set_text(ver, verBuf);
     lv_obj_align(ver, LV_ALIGN_BOTTOM_MID, 0, -10);
 }

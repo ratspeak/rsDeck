@@ -26,7 +26,7 @@ bool LXMFManager::begin(ReticulumManager* rns, MessageStore* store) {
         }
         std::vector<LXMFMessage> pending = _store->loadPendingOutgoing();
         for (auto& msg : pending) {
-            if ((int)_outQueue.size() >= RATDECK_MAX_OUTQUEUE) break;
+            if ((int)_outQueue.size() >= RSDECK_MAX_OUTQUEUE) break;
             msg.lastRetryMs = 0;
             _outQueue.push_back(msg);
         }
@@ -121,7 +121,7 @@ bool LXMFManager::sendMessage(const RNS::Bytes& destHash, const std::string& con
     msg.incoming = false;
     msg.status = LXMFStatus::QUEUED;
 
-    if ((int)_outQueue.size() >= RATDECK_MAX_OUTQUEUE) {
+    if ((int)_outQueue.size() >= RSDECK_MAX_OUTQUEUE) {
         Serial.println("[LXMF] Outbound queue full; refusing new message");
         return false;
     }
@@ -131,11 +131,11 @@ bool LXMFManager::sendMessage(const RNS::Bytes& destHash, const std::string& con
         Serial.println("[LXMF] Message pack failed");
         return false;
     }
-    if (payload.size() > RATDECK_LXMF_SINGLE_FRAME_MAX) {
+    if (payload.size() > RSDECK_LXMF_SINGLE_FRAME_MAX) {
         msg.status = LXMFStatus::FAILED;
         if (_store) _store->saveMessage(msg);
         Serial.printf("[LXMF] Message too large for T-Deck safe path (%d > %d); resource transfer disabled\n",
-                      (int)payload.size(), RATDECK_LXMF_SINGLE_FRAME_MAX);
+                      (int)payload.size(), RSDECK_LXMF_SINGLE_FRAME_MAX);
         return true;
     }
     if (preference == DeliveryPreference::Link) {
@@ -267,9 +267,9 @@ bool LXMFManager::sendDirect(LXMFMessage& msg) {
     if (payload.empty()) { Serial.println("[LXMF] packFull returned empty!"); msg.status = LXMFStatus::FAILED; return true; }
     const std::string msgIdHex = msg.messageId.toHex();
     const bool requireLink = _linkRequiredIds.count(msgIdHex) > 0;
-    if (payload.size() > RATDECK_LXMF_SINGLE_FRAME_MAX) {
+    if (payload.size() > RSDECK_LXMF_SINGLE_FRAME_MAX) {
         Serial.printf("[LXMF] Refusing resource-sized message (%d bytes); T-Deck safe cap is %d\n",
-                      (int)payload.size(), RATDECK_LXMF_SINGLE_FRAME_MAX);
+                      (int)payload.size(), RSDECK_LXMF_SINGLE_FRAME_MAX);
         msg.status = LXMFStatus::FAILED;
         return true;
     }
@@ -338,7 +338,7 @@ bool LXMFManager::sendDirect(LXMFMessage& msg) {
         // Larger packets require split-frame over LoRa, which is unreliable — any single
         // frame loss (CRC error, collision, half-duplex timing) kills the entire transfer
         // with no recovery. Link-based delivery handles retransmission at the protocol level.
-        if (payloadBytes.size() <= RATDECK_LXMF_SINGLE_FRAME_MAX) {
+        if (payloadBytes.size() <= RSDECK_LXMF_SINGLE_FRAME_MAX) {
             // Fits in single LoRa frame — send opportunistic
             Serial.printf("[LXMF] sending opportunistic: %d bytes to %s\n",
                           (int)payloadBytes.size(), outDest.hash().toHex().substr(0, 12).c_str());
@@ -348,7 +348,7 @@ bool LXMFManager::sendDirect(LXMFMessage& msg) {
         } else {
             // Too large for single frame — need link + resource transfer
             Serial.printf("[LXMF] Message needs link delivery (%d bytes > %d single-frame), retry %d\n",
-                          (int)payloadBytes.size(), RATDECK_LXMF_SINGLE_FRAME_MAX, msg.retries);
+                          (int)payloadBytes.size(), RSDECK_LXMF_SINGLE_FRAME_MAX, msg.retries);
             if (msg.retries % 3 == 0 && (!_outLink || _outLinkDestHash != msg.destHash
                 || _outLink.status() != RNS::Type::Link::ACTIVE)) {
                 ensureOutboundLink(outDest, msg.destHash, "resource transfer");
@@ -563,7 +563,7 @@ void LXMFManager::handleProofTimeoutHash(const std::string& receiptHash) {
     _pendingProofs.erase(it);
 
     p.proofAttempts++;
-    bool retry = p.proofAttempts < 3 && (int)_instance->_outQueue.size() < RATDECK_MAX_OUTQUEUE;
+    bool retry = p.proofAttempts < 3 && (int)_instance->_outQueue.size() < RSDECK_MAX_OUTQUEUE;
     LXMFStatus nextStatus = retry ? LXMFStatus::QUEUED : LXMFStatus::FAILED;
 
     if (_instance->_store) {

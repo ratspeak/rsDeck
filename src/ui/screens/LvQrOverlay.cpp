@@ -20,7 +20,7 @@ void LvQrOverlay::create() {
     lv_obj_clear_flag(_overlay, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t* title = lv_label_create(_overlay);
-    lv_obj_set_style_text_font(title, &lv_font_ratdeck_14, 0);
+    lv_obj_set_style_text_font(title, &lv_font_rsdeck_14, 0);
     lv_obj_set_style_text_color(title, lv_color_hex(Theme::ACCENT), 0);
     lv_label_set_text(title, "Scan to add me");
 
@@ -31,7 +31,7 @@ void LvQrOverlay::create() {
                            lv_color_hex(0xFFFFFF));
 
     _lblAddr = lv_label_create(_overlay);
-    lv_obj_set_style_text_font(_lblAddr, &lv_font_ratdeck_10, 0);
+    lv_obj_set_style_text_font(_lblAddr, &lv_font_rsdeck_10, 0);
     lv_obj_set_style_text_color(_lblAddr, lv_color_hex(Theme::TEXT_MUTED), 0);
     lv_label_set_long_mode(_lblAddr, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(_lblAddr, Theme::SCREEN_W - 12);
@@ -39,7 +39,7 @@ void LvQrOverlay::create() {
     lv_label_set_text(_lblAddr, "");
 
     lv_obj_t* hint = lv_label_create(_overlay);
-    lv_obj_set_style_text_font(hint, &lv_font_ratdeck_10, 0);
+    lv_obj_set_style_text_font(hint, &lv_font_rsdeck_10, 0);
     lv_obj_set_style_text_color(hint, lv_color_hex(Theme::TEXT_MUTED), 0);
     lv_label_set_text(hint, "Any key to close");
 

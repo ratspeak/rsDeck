@@ -6,7 +6,7 @@ flash, with a boot-time chooser:
 | Partition  | Slot  | Offset   | Size    | Contents |
 |------------|-------|----------|---------|----------|
 | launcher   | ota_0 | 0x10000  | 1MB     | Boot chooser UI |
-| standalone | ota_1 | 0x110000 | 4MB     | Full Ratdeck messenger |
+| standalone | ota_1 | 0x110000 | 4MB     | Full rsDeck messenger |
 | rnode      | ota_2 | 0x510000 | 3MB     | RNode (KISS over USB CDC + BLE) |
 | littlefs   | —     | 0x810000 | ~7.9MB  | User data (unchanged from single-app layout) |
 
@@ -32,22 +32,25 @@ Trackball up/down + click, or keys: `W`/`S` select, `Enter` boot,
 ## RNode mode
 
 The vendored RNode firmware (`vendor/rnode_firmware`, `make firmware-tdeck`)
-self-provisions EEPROM on first boot (PRODUCT_TDECK_V1 / MODEL_D9, 915 MHz
-defaults) and enables BLE pairing on first run when no bonds exist. The display
-shows the standard RNode UI (node address, waterfall, status) and the BLE
-pairing PIN during pairing; it blanks after 15s idle. Reset to return to the
-launcher.
+self-provisions EEPROM on first boot (PRODUCT_TDECK_V1 / MODEL_D9, default
+radio config) and adopts the running firmware hash for this app image. BLE stays
+connectable for already-bonded hosts; tap the on-screen Pair via BLE panel to
+open a 30s pairing window for a new host. The display shows the standard RNode
+UI (node address, waterfall, status) and the BLE pairing PIN during explicit
+pairing; it blanks after 60s idle. Reset to return to the launcher.
 
 ## Build
 
 ```bash
 make prep-tdeck     # once: arduino-cli esp32 core + libs
 make package        # dist/: rsdeck-full.zip, rsdeck-standalone.zip,
-                    #        rsdeck-rnode.zip, rsdeck-*-app.bin
+                    #        rsdeck-rnode.zip, rsdeck-*-m5launcher.bin
 make flash port=/dev/cu.usbmodemXXXX   # flash full image
 ```
 
 `rsdeck-full.bin` flashes at offset 0x0 and contains all three apps.
-`rsdeck-standalone.zip` repackages the legacy single-app `ratdeck-merged.bin`
-(old partition table, no launcher). The `*-app.bin` files are bare app images
-for external launchers or manual OTA-slot flashing.
+`rsdeck-standalone.zip` repackages the legacy single-app `rsdeck-merged.bin`
+(old partition table, no launcher). The `*-m5launcher.bin` files are bare app
+images for M5Launcher/M5Burner-style launchers, external launchers, or manual
+OTA-slot flashing. The RNode-only app image is T-Deck-specific and
+self-provisioning; it is not a generic upstream `rnodeconf` image.

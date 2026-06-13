@@ -198,7 +198,10 @@ float epd_update_fps  = 0.5;
   #define CARDPUTER_ADV_DISPLAY_INTENSITY_DEFAULT 96
 #elif BOARD_MODEL == BOARD_TDECK
   #define DISPLAY_BLANKING_TIMEOUT 60*1000
-  #define TDECK_DISPLAY_INTENSITY_DEFAULT 12
+  #define TDECK_DISPLAY_INTENSITY_DEFAULT 80
+  #define TDECK_DISPLAY_INTENSITY_MIN 5
+  #define TDECK_DISPLAY_INTENSITY_STEP 5
+  #define TDECK_DISPLAY_INTENSITY_TAG 0x80
 #else
   #define DISPLAY_BLANKING_TIMEOUT 15*1000
 #endif
@@ -324,29 +327,72 @@ uint8_t display_contrast = 0x00;
     else            { analogWrite(pin_backlight, value); }
   }
 #elif BOARD_MODEL == BOARD_TDECK
+  uint8_t tdeck_display_clamp_percent(uint8_t value) {
+    if (value < TDECK_DISPLAY_INTENSITY_MIN) return TDECK_DISPLAY_INTENSITY_MIN;
+    if (value > 100) return 100;
+    uint8_t snapped = ((value + (TDECK_DISPLAY_INTENSITY_STEP / 2)) / TDECK_DISPLAY_INTENSITY_STEP) * TDECK_DISPLAY_INTENSITY_STEP;
+    if (snapped < TDECK_DISPLAY_INTENSITY_MIN) return TDECK_DISPLAY_INTENSITY_MIN;
+    if (snapped > 100) return 100;
+    return snapped;
+  }
+
+  uint8_t tdeck_display_step_to_percent(uint8_t step) {
+    if (step == 0) return 0;
+    if (step > 15) step = 15;
+    uint8_t pct = (((uint16_t)step * 100) / 15 / TDECK_DISPLAY_INTENSITY_STEP) * TDECK_DISPLAY_INTENSITY_STEP;
+    if (pct < TDECK_DISPLAY_INTENSITY_MIN) return TDECK_DISPLAY_INTENSITY_MIN;
+    if (pct > 100) return 100;
+    return pct;
+  }
+
+  uint8_t tdeck_display_decode_intensity(uint8_t stored) {
+    if (stored == 0 || stored == 0xFF) return TDECK_DISPLAY_INTENSITY_DEFAULT;
+    if (stored >= TDECK_DISPLAY_INTENSITY_TAG) {
+      uint8_t index = stored - TDECK_DISPLAY_INTENSITY_TAG;
+      uint16_t pct = (uint16_t)(index + 1) * TDECK_DISPLAY_INTENSITY_STEP;
+      if (pct > 100) pct = 100;
+      return tdeck_display_clamp_percent((uint8_t)pct);
+    }
+    if (stored <= 15) return tdeck_display_step_to_percent(stored);
+    return tdeck_display_clamp_percent(stored);
+  }
+
+  uint8_t tdeck_display_encode_intensity(uint8_t pct) {
+    pct = tdeck_display_clamp_percent(pct);
+    return TDECK_DISPLAY_INTENSITY_TAG + (pct / TDECK_DISPLAY_INTENSITY_STEP) - 1;
+  }
+
+  uint8_t tdeck_display_percent_to_step(uint8_t pct) {
+    pct = tdeck_display_clamp_percent(pct);
+    uint8_t step = (uint8_t)(((uint16_t)pct * 15 + 50) / 100);
+    if (step < 1) step = 1;
+    if (step > 15) step = 15;
+    return step;
+  }
+
   void set_contrast(Adafruit_ST7789 *display, uint8_t value) {
     static uint8_t level = 0;
     static uint8_t steps = 16;
-    if (value > 15) value = 15;
     if (value == 0) {
         digitalWrite(DISPLAY_BL_PIN, 0);
         delay(3);
         level = 0;
         return;
     }
+    uint8_t target = tdeck_display_percent_to_step(value);
     if (level == 0) {
         digitalWrite(DISPLAY_BL_PIN, 1);
         level = steps;
         delayMicroseconds(30);
     }
     int from = steps - level;
-    int to = steps - value;
+    int to = steps - target;
     int num = (steps + to - from) % steps;
     for (int i = 0; i < num; i++) {
         digitalWrite(DISPLAY_BL_PIN, 0);
         digitalWrite(DISPLAY_BL_PIN, 1);
     }
-    level = value;
+    level = target;
   }
 #elif BOARD_MODEL == BOARD_CARDPUTER_ADV
   void set_contrast(M5Canvas *display, uint8_t value) {
@@ -608,9 +654,7 @@ bool display_init() {
           display_intensity = CARDPUTER_ADV_DISPLAY_INTENSITY_DEFAULT;
         }
       #elif BOARD_MODEL == BOARD_TDECK
-        if (display_intensity == 0xFF) {
-          display_intensity = TDECK_DISPLAY_INTENSITY_DEFAULT;
-        }
+        display_intensity = tdeck_display_decode_intensity(display_intensity);
       #endif
       display_unblank_intensity = display_intensity;
 

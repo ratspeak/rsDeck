@@ -155,7 +155,7 @@ void LvMessageView::createUI(lv_obj_t* parent) {
     lv_obj_set_flex_flow(parent, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(parent, 0, 0);
 
-    const lv_font_t* font = &lv_font_ratdeck_12;
+    const lv_font_t* font = &lv_font_rsdeck_12;
 
     // Header bar (top)
     _header = lv_obj_create(parent);
@@ -170,27 +170,27 @@ void LvMessageView::createUI(lv_obj_t* parent) {
     lv_obj_clear_flag(_header, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t* backLbl = lv_label_create(_header);
-    lv_obj_set_style_text_font(backLbl, &lv_font_ratdeck_14, 0);
+    lv_obj_set_style_text_font(backLbl, &lv_font_rsdeck_14, 0);
     lv_obj_set_style_text_color(backLbl, lv_color_hex(Theme::PRIMARY), 0);
     lv_label_set_text(backLbl, "<");
     lv_obj_align(backLbl, LV_ALIGN_LEFT_MID, 6, 0);
 
     _lblHeader = lv_label_create(_header);
-    lv_obj_set_style_text_font(_lblHeader, &lv_font_ratdeck_14, 0);
+    lv_obj_set_style_text_font(_lblHeader, &lv_font_rsdeck_14, 0);
     lv_obj_set_style_text_color(_lblHeader, lv_color_hex(Theme::ACCENT), 0);
     lv_label_set_long_mode(_lblHeader, LV_LABEL_LONG_DOT);
     lv_obj_set_width(_lblHeader, 188);
     lv_obj_set_pos(_lblHeader, 22, 3);
 
     _lblHeaderMeta = lv_label_create(_header);
-    lv_obj_set_style_text_font(_lblHeaderMeta, &lv_font_ratdeck_10, 0);
+    lv_obj_set_style_text_font(_lblHeaderMeta, &lv_font_rsdeck_10, 0);
     lv_obj_set_style_text_color(_lblHeaderMeta, lv_color_hex(Theme::TEXT_SECONDARY), 0);
     lv_label_set_long_mode(_lblHeaderMeta, LV_LABEL_LONG_DOT);
     lv_obj_set_width(_lblHeaderMeta, Theme::CONTENT_W - 30);
     lv_obj_set_pos(_lblHeaderMeta, 22, 21);
 
     _lblHeaderState = lv_label_create(_header);
-    lv_obj_set_style_text_font(_lblHeaderState, &lv_font_ratdeck_10, 0);
+    lv_obj_set_style_text_font(_lblHeaderState, &lv_font_rsdeck_10, 0);
     lv_obj_set_style_text_color(_lblHeaderState, lv_color_hex(Theme::TEXT_MUTED), 0);
     lv_label_set_text(_lblHeaderState, "UNKNOWN");
     lv_obj_align(_lblHeaderState, LV_ALIGN_TOP_RIGHT, -8, 8);
@@ -255,7 +255,7 @@ void LvMessageView::createUI(lv_obj_t* parent) {
     lv_obj_add_style(_btnSend, LvTheme::styleBtn(), 0);
     lv_obj_set_style_pad_all(_btnSend, 0, 0);
     lv_obj_t* sendLbl = lv_label_create(_btnSend);
-    lv_obj_set_style_text_font(sendLbl, &lv_font_ratdeck_10, 0);
+    lv_obj_set_style_text_font(sendLbl, &lv_font_rsdeck_10, 0);
     lv_obj_set_style_text_color(sendLbl, lv_color_hex(Theme::PRIMARY), 0);
     lv_label_set_text(sendLbl, "SEND");
     lv_obj_center(sendLbl);
@@ -384,7 +384,7 @@ void LvMessageView::refreshUI() {
 void LvMessageView::appendMessage(const LXMFMessage& msg) {
     if (!_msgScroll) return;
 
-    const lv_font_t* font = &lv_font_ratdeck_12;
+    const lv_font_t* font = &lv_font_rsdeck_12;
     int textW = textWidthForBubble(msg.content);
     if (!msg.incoming && textW < 96) textW = 96;
     int boxW = textW + 16;
@@ -455,7 +455,7 @@ void LvMessageView::appendMessage(const LXMFMessage& msg) {
 
         if (hasTime) {
             lv_obj_t* timeLbl = lv_label_create(meta);
-            lv_obj_set_style_text_font(timeLbl, &lv_font_ratdeck_10, 0);
+            lv_obj_set_style_text_font(timeLbl, &lv_font_rsdeck_10, 0);
             lv_obj_set_style_text_color(timeLbl, lv_color_hex(Theme::TEXT_MUTED), 0);
             lv_label_set_text(timeLbl, timeBuf);
             lv_obj_align(timeLbl, LV_ALIGN_LEFT_MID, 0, 0);
@@ -463,7 +463,7 @@ void LvMessageView::appendMessage(const LXMFMessage& msg) {
 
         if (!msg.incoming) {
             statusLbl = lv_label_create(meta);
-            lv_obj_set_style_text_font(statusLbl, &lv_font_ratdeck_10, 0);
+            lv_obj_set_style_text_font(statusLbl, &lv_font_rsdeck_10, 0);
             applyStatusGlyph(statusLbl, msg.status);
             lv_obj_align(statusLbl, LV_ALIGN_RIGHT_MID, 0, 0);
         }
@@ -519,13 +519,13 @@ void LvMessageView::rebuildMessages() {
         lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 13);
 
         lv_obj_t* title = lv_label_create(empty);
-        lv_obj_set_style_text_font(title, &lv_font_ratdeck_14, 0);
+        lv_obj_set_style_text_font(title, &lv_font_rsdeck_14, 0);
         lv_obj_set_style_text_color(title, lv_color_hex(Theme::TEXT_PRIMARY), 0);
         lv_label_set_text(title, "No messages yet");
         lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 32);
 
         lv_obj_t* sub = lv_label_create(empty);
-        lv_obj_set_style_text_font(sub, &lv_font_ratdeck_12, 0);
+        lv_obj_set_style_text_font(sub, &lv_font_rsdeck_12, 0);
         lv_obj_set_style_text_color(sub, lv_color_hex(Theme::TEXT_SECONDARY), 0);
         lv_label_set_text(sub, "Thread is quiet");
         lv_obj_align(sub, LV_ALIGN_TOP_MID, 0, 54);
@@ -724,7 +724,7 @@ void LvMessageView::showSendModeMenu() {
     lv_obj_clear_flag(_sendOverlay, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t* title = lv_label_create(_sendOverlay);
-    lv_obj_set_style_text_font(title, &lv_font_ratdeck_12, 0);
+    lv_obj_set_style_text_font(title, &lv_font_rsdeck_12, 0);
     lv_obj_set_style_text_color(title, lv_color_hex(Theme::ACCENT), 0);
     lv_label_set_text(title, "Send mode");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 0);
@@ -748,7 +748,7 @@ void LvMessageView::showSendModeMenu() {
         }, LV_EVENT_CLICKED, this);
 
         _sendLabels[i] = lv_label_create(row);
-        lv_obj_set_style_text_font(_sendLabels[i], &lv_font_ratdeck_12, 0);
+        lv_obj_set_style_text_font(_sendLabels[i], &lv_font_rsdeck_12, 0);
         lv_label_set_text(_sendLabels[i], labels[i]);
         lv_obj_center(_sendLabels[i]);
         _sendRows[i] = row;

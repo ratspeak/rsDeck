@@ -58,10 +58,10 @@ char bt_da[BT_DEV_ADDR_LEN];
 char bt_dh[BT_DEV_HASH_LEN];
 char bt_devname[11];
 
-#if BOARD_MODEL == BOARD_CARDPUTER_ADV
+#if BOARD_MODEL == BOARD_CARDPUTER_ADV || BOARD_MODEL == BOARD_TDECK
   extern void stopRadio();
 
-  void cardputer_adv_ble_host_detached() {
+  void ble_host_detached_cleanup() {
     if (radio_online) stopRadio();
     cable_state   = CABLE_STATE_DISCONNECTED;
     current_rssi  = -292;
@@ -363,8 +363,8 @@ char bt_devname[11];
       display_unblank();
       ble_authenticated = false;
       bt_state = BT_STATE_ON;
-      #if BOARD_MODEL == BOARD_CARDPUTER_ADV
-        cardputer_adv_ble_host_detached();
+      #if BOARD_MODEL == BOARD_CARDPUTER_ADV || BOARD_MODEL == BOARD_TDECK
+        ble_host_detached_cleanup();
       #endif
     }
 

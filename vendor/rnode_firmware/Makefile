@@ -40,7 +40,11 @@ TDECK_SKETCH = build/tdeck_sketch/RNode_Firmware
 TDECK_BUILD = build/tdeck_build
 TDECK_OUTPUT = build/tdeck.esp32.esp32s3
 TDECK_BIN = $(TDECK_OUTPUT)/RNode_Firmware.ino.bin
-TDECK_EXTRA_FLAGS = \"-DBOARD_MODEL=0x3B\"
+RSDECK_CONFIG_H ?= ../../src/config/Config.h
+RSDECK_VERSION_MAJOR ?= $(shell awk '/\#define RSDECK_VERSION_MAJOR/ {print $$3; exit}' $(RSDECK_CONFIG_H))
+RSDECK_VERSION_MINOR ?= $(shell awk '/\#define RSDECK_VERSION_MINOR/ {print $$3; exit}' $(RSDECK_CONFIG_H))
+RSDECK_VERSION_PATCH ?= $(shell awk '/\#define RSDECK_VERSION_PATCH/ {print $$3; exit}' $(RSDECK_CONFIG_H))
+TDECK_EXTRA_FLAGS = \"-DBOARD_MODEL=0x3B\" \"-DRSDECK_VERSION_MAJOR=$(RSDECK_VERSION_MAJOR)\" \"-DRSDECK_VERSION_MINOR=$(RSDECK_VERSION_MINOR)\" \"-DRSDECK_VERSION_PATCH=$(RSDECK_VERSION_PATCH)\"
 ARDUINO_DATA_DIR ?= $(shell if [ -d "$(HOME)/Library/Arduino15/packages" ]; then printf "$(HOME)/Library/Arduino15"; else printf "$(HOME)/.arduino15"; fi)
 ESP32_CORE_DIR = $(ARDUINO_DATA_DIR)/packages/esp32/hardware/esp32/$(ARDUINO_ESP_CORE_VER)
 

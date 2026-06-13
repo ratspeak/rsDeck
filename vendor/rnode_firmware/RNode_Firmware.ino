@@ -622,8 +622,14 @@ bool startRadio() {
 }
 
 void stopRadio() {
+  if (!radio_online) return;
+  #if BOARD_MODEL == BOARD_TDECK
+    radio_online = false;
+    LoRa->end();
+  #else
   LoRa->end();
   radio_online = false;
+  #endif
 }
 
 void handleModemTimeout() {

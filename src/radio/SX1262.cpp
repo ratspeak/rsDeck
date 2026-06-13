@@ -770,7 +770,13 @@ void SX1262::implicitHeaderMode() {
 }
 
 void SX1262::handleLowDataRate() {
-    _ldro = long((1 << _sf) / (getSignalBandwidth() / 1000)) > 16;
+    uint32_t bw = getSignalBandwidth();
+    if (_sf == 0 || bw == 0) {
+        _ldro = false;
+        return;
+    }
+    float symbolTimeMs = 1000.0f * (float)(1UL << _sf) / (float)bw;
+    _ldro = symbolTimeMs > 16.0f;
 }
 
 void SX1262::standby() {
@@ -785,23 +791,37 @@ void SX1262::sleep() {
 
 float SX1262::getAirtime(uint16_t written) {
     if (!_radioOnline) return 0;
-    float symbolRate = (float)getSignalBandwidth() / (float)(1 << _sf);
+    uint32_t bw = getSignalBandwidth();
+    uint8_t crDen = getCodingRate4();
+    if (_sf == 0 || bw == 0 || crDen < 5 || crDen > 8) return 0;
+
+    float symbolRate = (float)bw / (float)(1UL << _sf);
     float symbolTimeMs = 1000.0 / symbolRate;
-    float loraSymbols;
+    float payloadSymbols;
     if (_sf >= 7) {
-        loraSymbols = (8.0 * written + PHY_CRC_LORA_BITS - 4.0 * _sf + 8 + PHY_HEADER_LORA_SYMBOLS);
-        loraSymbols /= 4.0 * (_sf - 2 * (_ldro ? 1 : 0));
-        if (loraSymbols < 0) loraSymbols = 0;
-        loraSymbols = ceil(loraSymbols);
-        loraSymbols += _preambleLength + 0.25 + 8;
+        payloadSymbols = (8.0 * written + PHY_CRC_LORA_BITS - 4.0 * _sf + 8 + PHY_HEADER_LORA_SYMBOLS);
+        payloadSymbols /= 4.0 * (_sf - 2 * (_ldro ? 1 : 0));
+        if (payloadSymbols < 0) payloadSymbols = 0;
+        payloadSymbols = ceil(payloadSymbols) * crDen;
+        payloadSymbols += _preambleLength + 0.25 + 8;
     } else {
-        loraSymbols = (8.0 * written + PHY_CRC_LORA_BITS - 4.0 * _sf + PHY_HEADER_LORA_SYMBOLS);
-        loraSymbols /= 4.0 * _sf;
-        if (loraSymbols < 0) loraSymbols = 0;
-        loraSymbols = ceil(loraSymbols);
-        loraSymbols += _preambleLength + 2.25 + 8;
+        payloadSymbols = (8.0 * written + PHY_CRC_LORA_BITS - 4.0 * _sf + PHY_HEADER_LORA_SYMBOLS);
+        payloadSymbols /= 4.0 * _sf;
+        if (payloadSymbols < 0) payloadSymbols = 0;
+        payloadSymbols = ceil(payloadSymbols) * crDen;
+        payloadSymbols += _preambleLength + 2.25 + 8;
     }
-    return loraSymbols * symbolTimeMs;
+    return payloadSymbols * symbolTimeMs;
+}
+
+uint32_t SX1262::getBitrate() {
+    uint32_t bw = getSignalBandwidth();
+    uint8_t crDen = getCodingRate4();
+    if (_sf == 0 || bw == 0 || crDen < 5 || crDen > 8) return 0;
+
+    float bitrate = (float)_sf * (4.0f / (float)crDen) * (float)bw / (float)(1UL << _sf);
+    if (bitrate < 1.0f) return 1;
+    return (uint32_t)bitrate;
 }
 
 void IRAM_ATTR SX1262::onDio0Rise() {

@@ -3,7 +3,7 @@
 #include <cstdint>
 
 // =============================================================================
-// Ratdeck design constants
+// rsDeck design constants
 // Field-console palette tuned for the 320x240 LVGL surface.
 // Colors are runtime-switchable (Dark = original palette, Light = derived);
 // the value tables live in Theme.cpp. Identifiers keep their original

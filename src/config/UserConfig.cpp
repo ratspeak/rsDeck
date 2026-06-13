@@ -1,6 +1,26 @@
 #include "UserConfig.h"
 #include "config/BoardConfig.h"
 
+namespace {
+bool validLoRaFrequency(uint32_t freq) {
+    return (freq >= 863000000UL && freq <= 870000000UL) ||
+           (freq >= 902000000UL && freq <= 928000000UL) ||
+           (freq >= 920000000UL && freq <= 925000000UL);
+}
+}
+
+void UserConfig::sanitizeSettings() {
+    if (_settings.radioRegion >= REGION_COUNT) _settings.radioRegion = REGION_AMERICAS;
+    if (!validLoRaFrequency(_settings.loraFrequency)) {
+        _settings.loraFrequency = REGION_FREQ[constrain((int)_settings.radioRegion, 0, REGION_COUNT - 1)];
+    }
+    _settings.loraSF = constrain(_settings.loraSF, 5, 12);
+    _settings.loraBW = constrain(_settings.loraBW, 7800UL, 500000UL);
+    _settings.loraCR = constrain(_settings.loraCR, 5, 8);
+    _settings.loraTxPower = constrain(_settings.loraTxPower, -9, 22);
+    _settings.loraPreamble = constrain(_settings.loraPreamble, 6L, 65L);
+}
+
 bool UserConfig::parseJson(const String& json) {
     Serial.printf("[CONFIG] Parsing config (%d bytes)\n", json.length());
 
@@ -102,11 +122,13 @@ bool UserConfig::parseJson(const String& json) {
     if (_settings.announceInterval > 360) _settings.announceInterval = 360;
     _settings.devMode     = doc["dev_mode"]     | false;
 
+    sanitizeSettings();
     Serial.println("[CONFIG] Settings loaded");
     return true;
 }
 
-String UserConfig::serializeToJson() const {
+String UserConfig::serializeToJson() {
+    sanitizeSettings();
     JsonDocument doc;
 
     doc["radio_region"] = _settings.radioRegion;

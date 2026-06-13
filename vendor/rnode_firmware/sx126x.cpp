@@ -529,7 +529,16 @@ int sx126x::begin(long frequency) {
   return 1;
 }
 
-void sx126x::end() { sleep(); LORA_SPI.end(); _preinit_done = false; }
+void sx126x::end() {
+  onReceive(NULL);
+  sleep();
+  #if BOARD_MODEL != BOARD_TDECK
+    LORA_SPI.end();
+  #else
+    // T-Deck display and LoRa share Arduino SPI; ending it crashes the next UI refresh.
+  #endif
+  _preinit_done = false;
+}
 
 int sx126x::beginPacket(int implicitHeader) {
   #if HAS_LORA_PA
@@ -748,6 +757,9 @@ void sx126x::onReceive(void(*callback)(int)){
     detachInterrupt(digitalPinToInterrupt(_dio0));
     #ifdef SPI_HAS_NOTUSINGINTERRUPT
       LORA_SPI.notUsingInterrupt(digitalPinToInterrupt(_dio0));
+    #endif
+    #if BOARD_MODEL == BOARD_TDECK
+      _irq_pending = false;
     #endif
   }
 }

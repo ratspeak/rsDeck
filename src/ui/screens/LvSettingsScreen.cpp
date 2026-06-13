@@ -203,20 +203,20 @@ bool LvSettingsScreen::categoryNeedsReboot(int catIdx) const {
 bool LvSettingsScreen::confirmableAction(const SettingItem& item) const {
     return labelEq(item.label, "Developer Radio Controls")
         || labelEq(item.label, "Format SD Card")
-        || labelEq(item.label, "Erase Ratdeck SD Data")
+        || labelEq(item.label, "Erase rsDeck SD Data")
         || labelEq(item.label, "Erase Device");
 }
 
 bool LvSettingsScreen::armedAction(const SettingItem& item) const {
     return (_confirmingInitSD && labelEq(item.label, "Format SD Card")) ||
-        (_confirmingWipeSD && labelEq(item.label, "Erase Ratdeck SD Data")) ||
+        (_confirmingWipeSD && labelEq(item.label, "Erase rsDeck SD Data")) ||
         (_confirmingReset && labelEq(item.label, "Erase Device")) ||
         (_confirmingDevMode && labelEq(item.label, "Developer Radio Controls"));
 }
 
 bool LvSettingsScreen::destructiveAction(const SettingItem& item) const {
     return labelEq(item.label, "Format SD Card")
-        || labelEq(item.label, "Erase Ratdeck SD Data")
+        || labelEq(item.label, "Erase rsDeck SD Data")
         || labelEq(item.label, "Erase Device");
 }
 
@@ -255,7 +255,7 @@ void LvSettingsScreen::runFormatSD() {
         return;
     }
     if (_ui) _ui->lvStatusBar().showToast("Formatting SD card...", 2000);
-    bool ok = _sd->formatForRatdeck();
+    bool ok = _sd->formatForRsDeck();
     if (_ui) _ui->lvStatusBar().showToast(ok ? "SD card formatted" : "SD format failed", 1500);
     rebuildItemList();
 }
@@ -267,8 +267,8 @@ void LvSettingsScreen::runWipeSD() {
         rebuildItemList();
         return;
     }
-    if (_ui) _ui->lvStatusBar().showToast("Erasing Ratdeck SD data...", 2000);
-    bool ok = _sd->wipeRatdeck();
+    if (_ui) _ui->lvStatusBar().showToast("Erasing rsDeck SD data...", 2000);
+    bool ok = _sd->wipeRsDeck();
     if (_ui) _ui->lvStatusBar().showToast(ok ? "SD data erased" : "SD erase failed", 1500);
     rebuildItemList();
 }
@@ -276,7 +276,7 @@ void LvSettingsScreen::runWipeSD() {
 void LvSettingsScreen::runFactoryReset() {
     _confirmingReset = false;
     if (_ui) _ui->lvStatusBar().showToast("Erasing device...", 3000);
-    if (_sd && _sd->isReady()) _sd->wipeRatdeck();
+    if (_sd && _sd->isReady()) _sd->wipeRsDeck();
     if (_flash) _flash->format();
     nvs_flash_erase();
     delay(1500);  // Long enough for key state to clear before reboot
@@ -336,7 +336,7 @@ void LvSettingsScreen::firmwareCheckTask(void* arg) {
     HTTPClient http;
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     http.setTimeout(5000);
-    if (http.begin("https://api.github.com/repos/ratspeak/ratdeck/releases/latest")) {
+    if (http.begin("https://api.github.com/repos/ratspeak/rsDeck/releases/latest")) {
         http.addHeader("Accept", "application/vnd.github.v3+json");
         int httpCode = http.GET();
         if (httpCode == 200) {
@@ -355,7 +355,7 @@ void LvSettingsScreen::firmwareCheckTask(void* arg) {
                 delay(10);
             }
             if (extractReleaseTag(payload, version, sizeof(version))) {
-                result = strcmp(version, RATDECK_VERSION_STRING) > 0
+                result = strcmp(version, RSDECK_VERSION_STRING) > 0
                     ? FirmwareCheckState::AVAILABLE
                     : FirmwareCheckState::CURRENT;
             }
@@ -379,7 +379,7 @@ void LvSettingsScreen::buildItems() {
     // Identity & Device
     int devStart = idx;
     _items.push_back({"Firmware", SettingType::READONLY, nullptr, nullptr,
-        [](int) { return String(RATDECK_VERSION_STRING); }});
+        [](int) { return String(RSDECK_VERSION_STRING); }});
     idx++;
     _items.push_back({"LXMF Address", SettingType::READONLY, nullptr, nullptr,
         [this](int) { return _destinationHash.length() > 0 ? _destinationHash : String("unknown"); }});
@@ -1005,7 +1005,7 @@ void LvSettingsScreen::buildItems() {
     }
     {
         SettingItem wipeSD;
-        wipeSD.label = "Erase Ratdeck SD Data";
+        wipeSD.label = "Erase rsDeck SD Data";
         wipeSD.type = SettingType::ACTION;
         wipeSD.formatter = [this](int) {
             if (!_sd || !_sd->isReady()) return String("No Card");
@@ -1156,7 +1156,7 @@ void LvSettingsScreen::rebuildCategoryList() {
     _rowObjs.clear();
     lv_obj_clean(_scrollContainer);
 
-    const lv_font_t* font = &lv_font_ratdeck_12;
+    const lv_font_t* font = &lv_font_rsdeck_12;
 
     // Title
     lv_obj_t* titleRow = lv_obj_create(_scrollContainer);
@@ -1177,7 +1177,7 @@ void LvSettingsScreen::rebuildCategoryList() {
 
     if (_rebootNeeded) {
         lv_obj_t* pendingLbl = lv_label_create(titleRow);
-        lv_obj_set_style_text_font(pendingLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(pendingLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(pendingLbl, lv_color_hex(Theme::WARNING_CLR), 0);
         lv_label_set_text(pendingLbl, "REBOOT PENDING");
         lv_obj_align(pendingLbl, LV_ALIGN_RIGHT_MID, -8, 0);
@@ -1222,7 +1222,7 @@ void LvSettingsScreen::rebuildCategoryList() {
         char countBuf[8];
         snprintf(countBuf, sizeof(countBuf), "%d", cat.count);
         lv_obj_t* countLbl = lv_label_create(row);
-        lv_obj_set_style_text_font(countLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(countLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(countLbl, lv_color_hex(Theme::TEXT_MUTED), 0);
         lv_label_set_text(countLbl, countBuf);
         lv_obj_align(countLbl, LV_ALIGN_TOP_RIGHT, -24, 5);
@@ -1230,7 +1230,7 @@ void LvSettingsScreen::rebuildCategoryList() {
         // Summary
         if (cat.summary) {
             lv_obj_t* sumLbl = lv_label_create(row);
-            lv_obj_set_style_text_font(sumLbl, &lv_font_ratdeck_10, 0);
+            lv_obj_set_style_text_font(sumLbl, &lv_font_rsdeck_10, 0);
             lv_obj_set_style_text_color(sumLbl, lv_color_hex(pending ? Theme::WARNING_CLR : Theme::TEXT_MUTED), 0);
             clipLabel(sumLbl, Theme::CONTENT_W - 44);
             lv_label_set_text(sumLbl, cat.summary().c_str());
@@ -1259,7 +1259,7 @@ void LvSettingsScreen::rebuildItemList() {
     _editValueLbl = nullptr;  // Invalidate cached label before destroying widgets
     lv_obj_clean(_scrollContainer);
 
-    const lv_font_t* font = &lv_font_ratdeck_12;
+    const lv_font_t* font = &lv_font_rsdeck_12;
 
     // Category header
     lv_obj_t* headerRow = lv_obj_create(_scrollContainer);
@@ -1289,7 +1289,7 @@ void LvSettingsScreen::rebuildItemList() {
 
     if (_rebootNeeded) {
         lv_obj_t* pendingLbl = lv_label_create(headerRow);
-        lv_obj_set_style_text_font(pendingLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(pendingLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(pendingLbl, lv_color_hex(Theme::WARNING_CLR), 0);
         lv_label_set_text(pendingLbl, "REBOOT NEEDED");
         lv_obj_align(pendingLbl, LV_ALIGN_RIGHT_MID, -8, 0);
@@ -1308,7 +1308,7 @@ void LvSettingsScreen::rebuildItemList() {
         lv_obj_clear_flag(notice, LV_OBJ_FLAG_SCROLLABLE);
 
         lv_obj_t* noticeLbl = lv_label_create(notice);
-        lv_obj_set_style_text_font(noticeLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(noticeLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(noticeLbl, lv_color_hex(Theme::WARNING_CLR), 0);
         clipLabel(noticeLbl, Theme::CONTENT_W - 16);
         lv_label_set_text(noticeLbl, "Saved interface config is pending reboot");
@@ -1331,14 +1331,14 @@ void LvSettingsScreen::rebuildItemList() {
         lv_obj_clear_flag(confirm, LV_OBJ_FLAG_SCROLLABLE);
 
         lv_obj_t* confirmTitleLbl = lv_label_create(confirm);
-        lv_obj_set_style_text_font(confirmTitleLbl, &lv_font_ratdeck_12, 0);
+        lv_obj_set_style_text_font(confirmTitleLbl, &lv_font_rsdeck_12, 0);
         lv_obj_set_style_text_color(confirmTitleLbl, lv_color_hex(confirmColor), 0);
         clipLabel(confirmTitleLbl, Theme::CONTENT_W - 16);
         lv_label_set_text(confirmTitleLbl, confirmTitle);
         lv_obj_align(confirmTitleLbl, LV_ALIGN_TOP_LEFT, 8, 3);
 
         lv_obj_t* confirmDetailLbl = lv_label_create(confirm);
-        lv_obj_set_style_text_font(confirmDetailLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(confirmDetailLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(confirmDetailLbl, lv_color_hex(Theme::TEXT_PRIMARY), 0);
         clipLabel(confirmDetailLbl, Theme::CONTENT_W - 16);
         lv_label_set_text(confirmDetailLbl, confirmDetail);
@@ -1515,7 +1515,7 @@ void LvSettingsScreen::rebuildWifiList() {
     _rowObjs.clear();
     lv_obj_clean(_scrollContainer);
 
-    const lv_font_t* font = &lv_font_ratdeck_12;
+    const lv_font_t* font = &lv_font_rsdeck_12;
 
     // Header
     lv_obj_t* headerRow = lv_obj_create(_scrollContainer);
@@ -1591,7 +1591,7 @@ void LvSettingsScreen::rebuildWifiList() {
         char sigBuf[12];
         snprintf(sigBuf, sizeof(sigBuf), "%ddBm", net.rssi);
         lv_obj_t* sigLbl = lv_label_create(row);
-        lv_obj_set_style_text_font(sigLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(sigLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(sigLbl, lv_color_hex(Theme::TEXT_MUTED), 0);
         lv_label_set_text(sigLbl, sigBuf);
         lv_obj_align(sigLbl, LV_ALIGN_RIGHT_MID, -4, 0);
@@ -1919,7 +1919,7 @@ bool LvSettingsScreen::handleLongPress() {
         runFormatSD();
         return true;
     }
-    if (_confirmingWipeSD && labelEq(item.label, "Erase Ratdeck SD Data")) {
+    if (_confirmingWipeSD && labelEq(item.label, "Erase rsDeck SD Data")) {
         runWipeSD();
         return true;
     }

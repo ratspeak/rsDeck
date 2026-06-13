@@ -1,6 +1,7 @@
 #include "LoRaInterface.h"
 #include "config/BoardConfig.h"
 #include <algorithm>
+#include <cmath>
 
 // RNode on-air framing constants (from RNode_Firmware Framing.h / Config.h)
 // Every LoRa packet has a 1-byte header: upper nibble = random sequence, lower nibble = flags
@@ -14,9 +15,9 @@ LoRaInterface::LoRaInterface(SX1262* radio, const char* name)
 {
     _IN = true;
     _OUT = true;
-    _bitrate = 2000;
     // Reticulum MTU (500 bytes) — split-packet framing allows up to 2x254 = 508 bytes
     _HW_MTU = RNS::Type::Reticulum::MTU;
+    refreshRadioTiming(true);
 }
 
 LoRaInterface::~LoRaInterface() {
@@ -30,6 +31,7 @@ bool LoRaInterface::start() {
         return false;
     }
     _online = true;
+    refreshRadioTiming(true);
     _radio->receive();
     Serial.println("[LORA_IF] Interface started (split-packet enabled, MTU=500)");
     return true;
@@ -42,6 +44,7 @@ void LoRaInterface::stop() {
 
 void LoRaInterface::send_outgoing(const RNS::Bytes& data) {
     if (!_online || !_radio) return;
+    refreshRadioTiming();
 
     // Reject packets exceeding Reticulum MTU (500 bytes)
     if (data.size() > RNS::Type::Reticulum::MTU) {
@@ -73,6 +76,7 @@ void LoRaInterface::send_outgoing(const RNS::Bytes& data) {
 }
 
 void LoRaInterface::transmitNow(const RNS::Bytes& data) {
+    refreshRadioTiming();
     uint8_t header = (uint8_t)(random(256)) & RNODE_NIBBLE_SEQ;
     bool needsSplit = (data.size() > RNODE_SINGLE_MTU);
 
@@ -129,6 +133,7 @@ void LoRaInterface::transmitNow(const RNS::Bytes& data) {
 
 void LoRaInterface::loop() {
     if (!_online || !_radio) return;
+    refreshRadioTiming();
 
     // Handle async TX completion
     if (_txPending) {
@@ -170,8 +175,10 @@ void LoRaInterface::loop() {
     }
 
     // Split RX timeout: discard stale partial packets and drain deferred TX
-    if (_splitRxPending && (millis() - _splitRxTimestamp > SPLIT_RX_TIMEOUT_MS)) {
-        Serial.println("[LORA_IF] RX SPLIT timeout, discarding partial");
+    if (_splitRxPending && (millis() - _splitRxTimestamp > _splitRxTimeoutMs)) {
+        unsigned long age = millis() - _splitRxTimestamp;
+        Serial.printf("[LORA_IF] RX SPLIT timeout after %lums (limit=%lums frame=%.0fms), discarding partial\n",
+                      age, _splitRxTimeoutMs, _singleFrameAirtimeMs);
         _splitRxPending = false;
         _splitRxBuffer = RNS::Bytes();
         // Drain any TX that was deferred during split RX hold
@@ -226,14 +233,14 @@ void LoRaInterface::loop() {
             _splitRxBuffer = RNS::Bytes(raw + RNODE_HEADER_L, payloadSize);
             _splitRxTimestamp = millis();
 
-            Serial.printf("[LORA_IF] RX SPLIT frame 1: %d bytes (seq=0x%02X), RSSI=%d, SNR=%.1f\n",
-                payloadSize, seq, _lastRxRssi, _lastRxSnr);
+            Serial.printf("[LORA_IF] RX SPLIT frame 1: %d bytes (seq=0x%02X), RSSI=%d, SNR=%.1f, timeout=%lums\n",
+                payloadSize, seq, _lastRxRssi, _lastRxSnr, _splitRxTimeoutMs);
             _radio->receive();
             return;
         } else if (seq == _splitRxSeq) {
             // Second frame matches — reassemble
-            Serial.printf("[LORA_IF] RX SPLIT frame 2: %d bytes (seq=0x%02X), RSSI=%d, SNR=%.1f\n",
-                payloadSize, seq, _lastRxRssi, _lastRxSnr);
+            Serial.printf("[LORA_IF] RX SPLIT frame 2: %d bytes (seq=0x%02X), RSSI=%d, SNR=%.1f, age=%lums\n",
+                payloadSize, seq, _lastRxRssi, _lastRxSnr, millis() - _splitRxTimestamp);
 
             _splitRxBuffer.append(raw + RNODE_HEADER_L, payloadSize);
             int totalSize = _splitRxBuffer.size();
@@ -292,4 +299,44 @@ float LoRaInterface::airtimeUtilization() const {
     if (elapsed == 0) elapsed = 1;
     float windowMs = std::min((float)elapsed, (float)AIRTIME_WINDOW_MS);
     return _airtimeAccumMs / windowMs;
+}
+
+unsigned long LoRaInterface::computeSplitRxTimeoutMs(float frameAirtimeMs) const {
+    if (frameAirtimeMs <= 0) return SPLIT_RX_TIMEOUT_FLOOR_MS;
+    float raw = frameAirtimeMs * SPLIT_RX_TIMEOUT_MULT + SPLIT_RX_TIMEOUT_MARGIN_MS;
+    unsigned long rounded = (unsigned long)(ceil(raw / 500.0f) * 500.0f);
+    return std::min(SPLIT_RX_TIMEOUT_CEIL_MS,
+                    std::max(SPLIT_RX_TIMEOUT_FLOOR_MS, rounded));
+}
+
+void LoRaInterface::refreshRadioTiming(bool forceLog) {
+    if (!_radio || !_radio->isRadioOnline()) {
+        if (_bitrate == 0) _bitrate = 1;
+        return;
+    }
+
+    unsigned long now = millis();
+    if (!forceLog && _lastTimingRefreshMs != 0 && (now - _lastTimingRefreshMs) < 1000) return;
+    _lastTimingRefreshMs = now;
+
+    uint32_t newBitrate = _radio->getBitrate();
+    if (newBitrate == 0) newBitrate = (_bitrate > 0) ? _bitrate : 1;
+    float newFrameAirtime = _radio->getAirtime(MAX_PACKET_SIZE);
+    unsigned long newTimeout = computeSplitRxTimeoutMs(newFrameAirtime);
+
+    bool changed = forceLog || newBitrate != _bitrate ||
+                   newTimeout != _splitRxTimeoutMs ||
+                   fabsf(newFrameAirtime - _singleFrameAirtimeMs) >= 1.0f;
+
+    _bitrate = newBitrate;
+    _singleFrameAirtimeMs = newFrameAirtime;
+    _splitRxTimeoutMs = newTimeout;
+
+    if (changed) {
+        Serial.printf("[LORA_IF] timing: bitrate=%lu bps frame=%.0fms split_timeout=%lums ldro=%s\n",
+                      (unsigned long)_bitrate,
+                      _singleFrameAirtimeMs,
+                      _splitRxTimeoutMs,
+                      _radio->lowDataRateEnabled() ? "on" : "off");
+    }
 }

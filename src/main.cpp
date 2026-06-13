@@ -1,5 +1,5 @@
 // =============================================================================
-// Ratdeck — Main Entry Point
+// rsDeck — Main Entry Point
 // LilyGo T-Deck Plus: LovyanGFX Direct UI + microReticulum + LXMF Messaging
 // =============================================================================
 
@@ -411,7 +411,7 @@ void onHotkeyAutoIface() {
 }
 void onHotkeyDiag() {
     Serial.println("=== DIAGNOSTIC DUMP ===");
-    Serial.printf("Device: Ratdeck T-Deck Plus\n");
+    Serial.printf("Device: rsDeck T-Deck Plus\n");
     Serial.printf("Identity: %s\n", rns.identityHash().c_str());
     Serial.printf("Transport: %s\n", rns.isTransportActive() ? "ACTIVE" : "OFFLINE");
     Serial.printf("Paths: %d  Links: %d\n", (int)rns.pathCount(), (int)rns.linkCount());
@@ -425,6 +425,17 @@ void onHotkeyDiag() {
                       radio.getTxPower());
         Serial.printf("Regulator: %s\n", LORA_USE_DCDC_REGULATOR ? "DC-DC" : "LDO");
         Serial.printf("Preamble: %ld symbols\n", radio.getPreambleLength());
+        Serial.printf("Bitrate: %lu bps  LDRO: %s  frame255: %.0f ms\n",
+                      (unsigned long)radio.getBitrate(),
+                      radio.lowDataRateEnabled() ? "ON" : "off",
+                      radio.getAirtime(MAX_PACKET_SIZE));
+        if (auto* loraIf = rns.loraInterface()) {
+            Serial.printf("LoRaIF: bitrate=%lu bps split_timeout=%lu ms frame=%.0f ms airtime=%.2f%%\n",
+                          (unsigned long)loraIf->bitrate(),
+                          loraIf->splitRxTimeoutMs(),
+                          loraIf->singleFrameAirtimeMs(),
+                          loraIf->airtimeUtilization() * 100.0f);
+        }
         Serial.printf("IQ invert: %s\n", radio.getInvertIQ() ? "ON" : "off");
         Serial.printf("SyncWord regs: 0x%02X%02X\n",
             radio.readRegister(REG_SYNC_WORD_MSB_6X),
@@ -517,7 +528,7 @@ void onHotkeyRssiMonitor() {
 void onHotkeyRadioTest() {
     Serial.println("[TEST] Sending raw test packet...");
     uint8_t header = 0xA0;
-    const char* testPayload = "RATDECK_TEST_1234567890";
+    const char* testPayload = "RSDECK_TEST_1234567890";
     radio.beginPacket();
     radio.write(header);
     radio.write((const uint8_t*)testPayload, strlen(testPayload));
@@ -659,7 +670,7 @@ static bool selectDiagnosticPeer(const char* explicitArg, RNS::Bytes& destHash, 
 }
 
 static std::string makeDiagnosticLxmfPayload(size_t length) {
-    static constexpr char kPrefix[] = "RATDECK-LXMF-TEST:";
+    static constexpr char kPrefix[] = "RSDECK-LXMF-TEST:";
     static constexpr char kPattern[] =
         "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
@@ -1055,7 +1066,7 @@ void setup() {
     delay(100);
     Serial.println();
     Serial.println("=================================");
-    Serial.printf("  Ratdeck v%s\n", RATDECK_VERSION_STRING);
+    Serial.printf("  rsDeck v%s\n", RSDECK_VERSION_STRING);
     Serial.println("  LilyGo T-Deck Plus");
     Serial.println("=================================");
 
@@ -1129,7 +1140,7 @@ void setup() {
     delay(10);
     if (sdStore.begin(&sharedSPI, SD_CS)) {
         sdHadExistingData = sdStore.hasExistingData();
-        sdStore.formatForRatdeck();
+        sdStore.formatForRsDeck();
         Serial.println("[SD] Card ready");
     } else {
         Serial.println("[SD] Not detected");
@@ -1715,7 +1726,7 @@ void setup() {
         if (wipe) {
             Serial.println("[BOOT] User chose to wipe old data");
             lvDataCleanScreen.showStatus("Clearing old data...");
-            sdStore.wipeRatdeck();
+            sdStore.wipeRsDeck();
             if (announceManager) announceManager->clearAll();
             Serial.println("[BOOT] Old data cleared");
             lvDataCleanScreen.showStatus("Done! Rebooting...");
@@ -1843,7 +1854,7 @@ void setup() {
         keyboard.backlightOn();
     }
 
-    Serial.println("[BOOT] Ratdeck ready");
+    Serial.println("[BOOT] rsDeck ready");
     Serial.printf("[BOOT] Summary: radio=%s flash=%s sd=%s\n",
                   radioOnline ? "ONLINE" : "OFFLINE",
                   flash.isReady() ? "OK" : "FAIL",

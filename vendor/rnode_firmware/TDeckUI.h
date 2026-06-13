@@ -10,7 +10,9 @@
 void display_unblank();
 void bt_enable_pairing();
 void bt_disable_pairing();
+void bt_debond_all();
 int bt_bond_count();
+void di_conf_save(uint8_t dint);
 extern uint32_t bt_pairing_started;
 #define TD_PAIRING_WINDOW_MS 30000
 
@@ -36,8 +38,61 @@ extern uint32_t bt_pairing_started;
 #define TD_WF_X 212
 #define TD_WF_W 107
 #define TD_WF_Y 30
-#define TD_WF_H 192
+
+#define TD_BTN_X (TD_WF_X + 5)
+#define TD_BTN_W (TD_WF_W - 10)
+#define TD_PAIR_BTN_H 42
+#define TD_SETTINGS_BTN_H TD_PAIR_BTN_H
+#define TD_PANEL_H (TD_FOOT_Y - TD_WF_Y - 4)
+#define TD_ONLINE_SETTINGS_BTN_Y (TD_FOOT_Y - TD_SETTINGS_BTN_H - 4)
+#define TD_WF_H (TD_ONLINE_SETTINGS_BTN_Y - TD_WF_Y - 8)
 #define TD_WF_SIZE TD_WF_H
+#define TD_PAIR_BTN_Y (TD_WF_Y + 42)
+#define TD_SETTINGS_BTN_Y (TD_PAIR_BTN_Y + TD_PAIR_BTN_H + 10)
+#define TD_CANCEL_BTN_Y (TD_WF_Y + 130)
+
+#define TD_SETTINGS_BACK_X 252
+#define TD_SETTINGS_BACK_Y 32
+#define TD_SETTINGS_BACK_W 58
+#define TD_SETTINGS_BACK_H 28
+#define TD_SETTINGS_MINUS_X 18
+#define TD_SETTINGS_MINUS_Y 88
+#define TD_SETTINGS_STEP_W 36
+#define TD_SETTINGS_STEP_H 30
+#define TD_SETTINGS_PLUS_X 266
+#define TD_SETTINGS_PLUS_Y 88
+#define TD_SETTINGS_BAR_X 66
+#define TD_SETTINGS_BAR_Y 99
+#define TD_SETTINGS_BAR_W 188
+#define TD_SETTINGS_BAR_H 8
+#define TD_SETTINGS_ABOUT_X 18
+#define TD_SETTINGS_ABOUT_Y 128
+#define TD_SETTINGS_ABOUT_W 132
+#define TD_SETTINGS_ABOUT_H 34
+#define TD_SETTINGS_SLEEP_X 166
+#define TD_SETTINGS_SLEEP_Y 128
+#define TD_SETTINGS_SLEEP_W 136
+#define TD_SETTINGS_SLEEP_H 34
+#define TD_SETTINGS_FORGET_X 18
+#define TD_SETTINGS_FORGET_Y 174
+#define TD_SETTINGS_FORGET_W 284
+#define TD_SETTINGS_FORGET_H 34
+#define TD_ABOUT_CLOSE_X 126
+#define TD_ABOUT_CLOSE_Y 178
+#define TD_ABOUT_CLOSE_W 68
+#define TD_ABOUT_CLOSE_H 32
+#define TD_BRIGHTNESS_MIN_PCT 5
+#define TD_BRIGHTNESS_STEP_PCT 5
+
+#ifndef RSDECK_VERSION_MAJOR
+  #define RSDECK_VERSION_MAJOR 0
+#endif
+#ifndef RSDECK_VERSION_MINOR
+  #define RSDECK_VERSION_MINOR 0
+#endif
+#ifndef RSDECK_VERSION_PATCH
+  #define RSDECK_VERSION_PATCH 0
+#endif
 
 static const uint16_t td_wf_palette[9] = {
   0x0000, 0x0011, 0x001F, 0x07FF,
@@ -49,6 +104,18 @@ bool td_ui_ready = false;
 int td_waterfall[TD_WF_SIZE];
 int td_waterfall_head = 0;
 uint8_t td_charge_tick = 0;
+
+enum TdView : uint8_t {
+  TD_VIEW_MAIN = 0,
+  TD_VIEW_SETTINGS = 1,
+  TD_VIEW_ABOUT = 2
+};
+
+TdView td_view = TD_VIEW_MAIN;
+uint8_t td_settings_brightness_pct = 80;
+uint32_t td_settings_forget_until = 0;
+uint32_t td_settings_status_until = 0;
+const char* td_settings_status_msg = nullptr;
 
 // --- GT911 touch (poll-only, tap toggles display power) ---
 #define TD_TOUCH_SDA 18
@@ -119,6 +186,135 @@ bool td_pair_button_visible() {
   return !radio_online && bt_state != BT_STATE_CONNECTED && bt_state != BT_STATE_PAIRING;
 }
 
+bool td_settings_button_visible() {
+  return bt_state != BT_STATE_PAIRING;
+}
+
+bool td_hit(int16_t x, int16_t y, int rx, int ry, int rw, int rh) {
+  return x >= rx && x < rx + rw && y >= ry && y < ry + rh;
+}
+
+uint8_t td_clamp_brightness_pct(uint8_t pct) {
+  if (pct < TD_BRIGHTNESS_MIN_PCT) return TD_BRIGHTNESS_MIN_PCT;
+  if (pct > 100) return 100;
+  uint8_t snapped = ((pct + (TD_BRIGHTNESS_STEP_PCT / 2)) / TD_BRIGHTNESS_STEP_PCT) * TD_BRIGHTNESS_STEP_PCT;
+  if (snapped < TD_BRIGHTNESS_MIN_PCT) return TD_BRIGHTNESS_MIN_PCT;
+  if (snapped > 100) return 100;
+  return snapped;
+}
+
+uint8_t td_intensity_to_pct(uint8_t intensity) {
+  if (intensity == 0 || intensity == 0xFF) return TDECK_DISPLAY_INTENSITY_DEFAULT;
+  return td_clamp_brightness_pct(intensity);
+}
+
+uint8_t td_pct_to_intensity(uint8_t pct) {
+  return td_clamp_brightness_pct(pct);
+}
+
+void td_settings_set_status(const char* msg, uint16_t duration_ms = 1800) {
+  td_settings_status_msg = msg;
+  td_settings_status_until = millis() + duration_ms;
+}
+
+void td_settings_load_brightness() {
+  uint8_t intensity = display_intensity;
+  if (intensity == 0 && display_unblank_intensity != 0) intensity = display_unblank_intensity;
+  td_settings_brightness_pct = td_intensity_to_pct(intensity);
+}
+
+void td_settings_preview_brightness(uint8_t pct) {
+  td_settings_brightness_pct = td_clamp_brightness_pct(pct);
+  display_intensity = td_pct_to_intensity(td_settings_brightness_pct);
+  display_unblank_intensity = 0;
+  di_conf_save(display_intensity);
+  display_blank_frame_drawn = false;
+  display_unblank();
+}
+
+void td_open_settings() {
+  td_view = TD_VIEW_SETTINGS;
+  td_settings_forget_until = 0;
+  td_settings_status_msg = nullptr;
+  td_settings_load_brightness();
+  display_unblank();
+  last_disp_update = 0;
+}
+
+void td_sleep_display() {
+  uint8_t current = display_intensity;
+  if (current == 0 || current == 0xFF) current = TDECK_DISPLAY_INTENSITY_DEFAULT;
+  display_unblank_intensity = current;
+  display_intensity = 0;
+  display_blanked = true;
+  display_blank_frame_drawn = false;
+  td_view = TD_VIEW_MAIN;
+  last_unblank_event = millis() - display_blanking_timeout - 1;
+  last_disp_update = 0;
+}
+
+bool td_handle_settings_touch(int16_t x, int16_t y) {
+  if (td_hit(x, y, TD_SETTINGS_BACK_X, TD_SETTINGS_BACK_Y, TD_SETTINGS_BACK_W, TD_SETTINGS_BACK_H)) {
+    td_view = TD_VIEW_MAIN;
+    td_settings_forget_until = 0;
+    display_unblank();
+    return true;
+  }
+
+  if (td_hit(x, y, TD_SETTINGS_MINUS_X, TD_SETTINGS_MINUS_Y, TD_SETTINGS_STEP_W, TD_SETTINGS_STEP_H)) {
+    uint8_t next = td_settings_brightness_pct;
+    if (next > TD_BRIGHTNESS_MIN_PCT + TD_BRIGHTNESS_STEP_PCT) next -= TD_BRIGHTNESS_STEP_PCT;
+    else next = TD_BRIGHTNESS_MIN_PCT;
+    td_settings_preview_brightness(next);
+    return true;
+  }
+
+  if (td_hit(x, y, TD_SETTINGS_PLUS_X, TD_SETTINGS_PLUS_Y, TD_SETTINGS_STEP_W, TD_SETTINGS_STEP_H)) {
+    uint8_t next = td_settings_brightness_pct;
+    if (next < 100 - TD_BRIGHTNESS_STEP_PCT) next += TD_BRIGHTNESS_STEP_PCT;
+    else next = 100;
+    td_settings_preview_brightness(next);
+    return true;
+  }
+
+  if (td_hit(x, y, TD_SETTINGS_ABOUT_X, TD_SETTINGS_ABOUT_Y, TD_SETTINGS_ABOUT_W, TD_SETTINGS_ABOUT_H)) {
+    td_view = TD_VIEW_ABOUT;
+    display_unblank();
+    return true;
+  }
+
+  if (td_hit(x, y, TD_SETTINGS_SLEEP_X, TD_SETTINGS_SLEEP_Y, TD_SETTINGS_SLEEP_W, TD_SETTINGS_SLEEP_H)) {
+    td_sleep_display();
+    return true;
+  }
+
+  if (td_hit(x, y, TD_SETTINGS_FORGET_X, TD_SETTINGS_FORGET_Y, TD_SETTINGS_FORGET_W, TD_SETTINGS_FORGET_H)) {
+    if ((int32_t)(td_settings_forget_until - millis()) > 0) {
+      bt_debond_all();
+      bt_disable_pairing();
+      td_settings_forget_until = 0;
+      td_settings_set_status("BLE bonds removed", 2200);
+    } else {
+      td_settings_forget_until = millis() + 5000;
+      td_settings_set_status("Tap Forget again", 5000);
+    }
+    display_unblank();
+    return true;
+  }
+
+  return false;
+}
+
+bool td_handle_about_touch(int16_t x, int16_t y) {
+  if (td_hit(x, y, TD_ABOUT_CLOSE_X, TD_ABOUT_CLOSE_Y, TD_ABOUT_CLOSE_W, TD_ABOUT_CLOSE_H)) {
+    td_view = TD_VIEW_SETTINGS;
+    display_unblank();
+    return true;
+  }
+
+  return false;
+}
+
 void td_poll_touch() {
   if (millis() - td_last_touch_poll < 50) return;
   td_last_touch_poll = millis();
@@ -138,15 +334,34 @@ void td_poll_touch() {
   // inactivity timeout alone, never from a tap.
   if (display_blanked) {
     display_unblank();
+    td_view = TD_VIEW_MAIN;
     last_disp_update = 0;
     return;
   }
 
-  bool in_panel = td_touch_x >= (TD_WF_X - 6) && td_touch_y >= TD_BAR_H && td_touch_y < TD_FOOT_Y;
-  if (in_panel && td_pair_button_visible()) {
-    bt_enable_pairing();           // 30s window, auto-disarms via BT_PAIRING_TIMEOUT
-  } else if (in_panel && bt_state == BT_STATE_PAIRING) {
+  if (td_view == TD_VIEW_SETTINGS) {
+    if (!td_handle_settings_touch(td_touch_x, td_touch_y)) {
+      display_unblank();
+    }
+    last_disp_update = 0;
+    return;
+  }
+
+  if (td_view == TD_VIEW_ABOUT) {
+    if (!td_handle_about_touch(td_touch_x, td_touch_y)) {
+      display_unblank();
+    }
+    last_disp_update = 0;
+    return;
+  }
+
+  int settings_y = radio_online ? TD_ONLINE_SETTINGS_BTN_Y : TD_SETTINGS_BTN_Y;
+  if (td_pair_button_visible() && td_hit(td_touch_x, td_touch_y, TD_BTN_X, TD_PAIR_BTN_Y, TD_BTN_W, TD_PAIR_BTN_H)) {
+    bt_enable_pairing();           // Auto-disarms via BT_PAIRING_TIMEOUT.
+  } else if (bt_state == BT_STATE_PAIRING && td_hit(td_touch_x, td_touch_y, TD_BTN_X, TD_CANCEL_BTN_Y, TD_BTN_W, TD_SETTINGS_BTN_H)) {
     bt_disable_pairing();          // tap again to cancel
+  } else if (td_settings_button_visible() && td_hit(td_touch_x, td_touch_y, TD_BTN_X, settings_y, TD_BTN_W, TD_SETTINGS_BTN_H)) {
+    td_open_settings();
   } else {
     display_unblank();             // count as activity, extend the timeout
   }
@@ -201,6 +416,29 @@ void td_draw_gradient_bar(int x, int y, int w, int h, float percent) {
   else if (percent < 66.0f) fill_clr = 0xFBE0;
   td_canvas->drawRect(x, y, w, h, TD_CLR_BORDER);
   if (fill_w > 0) td_canvas->fillRect(x + 1, y + 1, fill_w, h - 2, fill_clr);
+}
+
+int td_text_width(const char* label, int text_size = 1) {
+  int len = 0;
+  while (label && label[len] != '\0') len++;
+  return len * 6 * text_size;
+}
+
+void td_draw_centered_text(const char* label, int x, int y, int w, int text_size, uint16_t colour) {
+  td_canvas->setTextSize(text_size);
+  td_canvas->setTextColor(colour);
+  int tw = td_text_width(label, text_size);
+  int tx = x + ((w - tw) / 2);
+  if (tx < x + 2) tx = x + 2;
+  td_canvas->setCursor(tx, y);
+  td_canvas->print(label);
+}
+
+void td_draw_button(int x, int y, int w, int h, const char* label, uint16_t border, uint16_t text, bool armed = false) {
+  uint16_t fill = armed ? 0x3000 : TD_CLR_BG_PANEL;
+  td_canvas->fillRoundRect(x, y, w, h, 6, fill);
+  td_canvas->drawRoundRect(x, y, w, h, 6, border);
+  td_draw_centered_text(label, x, y + ((h - 8) / 2), w, 1, text);
 }
 
 void td_draw_usb_icon(int x, int y, uint16_t colour) {
@@ -306,10 +544,7 @@ void td_draw_pair_panel() {
     td_canvas->setTextColor(TD_CLR_TEXT_PRIMARY);
     td_canvas->setCursor(remain_s >= 10 ? cx - 23 : cx - 11, TD_WF_Y + 76);
     td_canvas->print(rbuf);
-    td_canvas->setTextSize(1);
-    td_canvas->setTextColor(TD_CLR_TEXT_DIM);
-    td_canvas->setCursor(cx - 39, TD_WF_Y + 118);
-    td_canvas->print("tap to cancel");
+    td_draw_button(TD_BTN_X, TD_CANCEL_BTN_Y, TD_BTN_W, TD_SETTINGS_BTN_H, "Cancel", TD_CLR_WARN, TD_CLR_WARN);
     return;
   }
 
@@ -321,37 +556,36 @@ void td_draw_pair_panel() {
     td_canvas->setTextColor(TD_CLR_TEXT_DIM);
     td_canvas->setCursor(cx - 47, TD_WF_Y + 96);
     td_canvas->print("waiting for host");
+    td_draw_button(TD_BTN_X, TD_SETTINGS_BTN_Y, TD_BTN_W, TD_SETTINGS_BTN_H, "Settings", TD_CLR_ACCENT, TD_CLR_ACCENT);
     return;
   }
 
   // Idle: paired devices can connect without opening pairing. The same panel
   // remains tappable to pair an additional or re-paired host.
-  int bw = 98; int bh = 48;
-  int bx = TD_WF_X + (TD_WF_W - bw) / 2;
-  int by = TD_WF_Y + 72;
   bool has_bond = bt_bond_count() > 0;
-  td_canvas->fillRoundRect(bx, by, bw, bh, 8, TD_CLR_BG_PANEL);
-  td_canvas->drawRoundRect(bx, by, bw, bh, 8, has_bond ? TD_CLR_GREEN : TD_CLR_ACCENT);
+  td_canvas->fillRoundRect(TD_BTN_X, TD_PAIR_BTN_Y, TD_BTN_W, TD_PAIR_BTN_H, 8, TD_CLR_BG_PANEL);
+  td_canvas->drawRoundRect(TD_BTN_X, TD_PAIR_BTN_Y, TD_BTN_W, TD_PAIR_BTN_H, 8, has_bond ? TD_CLR_GREEN : TD_CLR_ACCENT);
   td_canvas->setTextSize(1);
   if (has_bond) {
     td_canvas->setTextColor(TD_CLR_GREEN);
-    td_canvas->setCursor(bx + 23, by + 10);
+    td_canvas->setCursor(TD_BTN_X + 23, TD_PAIR_BTN_Y + 8);
     td_canvas->print("BLE ready");
     td_canvas->setTextColor(TD_CLR_TEXT_DIM);
-    td_canvas->setCursor(bx + 19, by + 25);
+    td_canvas->setCursor(TD_BTN_X + 19, TD_PAIR_BTN_Y + 23);
     td_canvas->print("tap to pair");
   } else {
     td_canvas->setTextColor(TD_CLR_ACCENT);
-    td_canvas->setCursor(bx + 25, by + 14);
+    td_canvas->setCursor(TD_BTN_X + 25, TD_PAIR_BTN_Y + 10);
     td_canvas->print("Pair via");
-    td_canvas->setCursor(bx + 40, by + 28);
+    td_canvas->setCursor(TD_BTN_X + 40, TD_PAIR_BTN_Y + 24);
     td_canvas->print("BLE");
   }
+  td_draw_button(TD_BTN_X, TD_SETTINGS_BTN_Y, TD_BTN_W, TD_SETTINGS_BTN_H, "Settings", TD_CLR_ACCENT, TD_CLR_ACCENT);
 }
 
 void td_draw_waterfall() {
-  td_canvas->fillRect(TD_WF_X, TD_WF_Y, TD_WF_W, TD_WF_H + 2, TD_CLR_BG);
-  td_canvas->drawFastVLine(TD_WF_X - 2, TD_WF_Y, TD_WF_H, TD_CLR_BORDER);
+  td_canvas->fillRect(TD_WF_X, TD_WF_Y, TD_WF_W, TD_PANEL_H, TD_CLR_BG);
+  td_canvas->drawFastVLine(TD_WF_X - 2, TD_WF_Y, TD_PANEL_H, TD_CLR_BORDER);
 
   if (!radio_online) {
     td_draw_pair_panel();
@@ -388,6 +622,10 @@ void td_draw_waterfall() {
         td_canvas->drawPixel(TD_WF_X + 1 + tx, ypos, 0xFFFF);
       }
     }
+  }
+
+  if (td_settings_button_visible()) {
+    td_draw_button(TD_BTN_X, TD_ONLINE_SETTINGS_BTN_Y, TD_BTN_W, TD_SETTINGS_BTN_H, "Settings", TD_CLR_ACCENT, TD_CLR_ACCENT);
   }
 }
 
@@ -548,6 +786,114 @@ void td_draw_error_screen() {
   }
 }
 
+void td_draw_settings_screen() {
+  td_canvas->fillRect(0, TD_BAR_H + 1, TD_W, TD_FOOT_Y - TD_BAR_H - 1, TD_CLR_BG);
+
+  int x = 12;
+  int y = TD_CONTENT_Y + 6;
+  td_canvas->setTextSize(2);
+  td_canvas->setTextColor(TD_CLR_TEXT_PRIMARY);
+  td_canvas->setCursor(x, y);
+  td_canvas->print("Settings");
+  td_draw_button(TD_SETTINGS_BACK_X, TD_SETTINGS_BACK_Y, TD_SETTINGS_BACK_W, TD_SETTINGS_BACK_H, "Back", TD_CLR_BORDER, TD_CLR_TEXT_SECONDARY);
+
+  y += 34;
+  td_canvas->setTextSize(1);
+  td_canvas->setTextColor(TD_CLR_TEXT_SECONDARY);
+  td_canvas->setCursor(x, y);
+  td_canvas->print("Brightness");
+
+  char pctbuf[8];
+  snprintf(pctbuf, sizeof(pctbuf), "%u%%", (unsigned int)td_settings_brightness_pct);
+  td_canvas->setTextSize(2);
+  td_canvas->setTextColor(TD_CLR_ACCENT);
+  td_canvas->setCursor(214, y - 5);
+  td_canvas->print(pctbuf);
+
+  td_draw_button(TD_SETTINGS_MINUS_X, TD_SETTINGS_MINUS_Y, TD_SETTINGS_STEP_W, TD_SETTINGS_STEP_H, "-", TD_CLR_BORDER, TD_CLR_TEXT_PRIMARY);
+  td_draw_button(TD_SETTINGS_PLUS_X, TD_SETTINGS_PLUS_Y, TD_SETTINGS_STEP_W, TD_SETTINGS_STEP_H, "+", TD_CLR_BORDER, TD_CLR_TEXT_PRIMARY);
+
+  td_canvas->drawRect(TD_SETTINGS_BAR_X, TD_SETTINGS_BAR_Y, TD_SETTINGS_BAR_W, TD_SETTINGS_BAR_H, TD_CLR_BORDER);
+  int usable = TD_SETTINGS_BAR_W - 2;
+  int fill = ((td_settings_brightness_pct - TD_BRIGHTNESS_MIN_PCT) * usable) / (100 - TD_BRIGHTNESS_MIN_PCT);
+  if (fill > 0) td_canvas->fillRect(TD_SETTINGS_BAR_X + 1, TD_SETTINGS_BAR_Y + 1, fill, TD_SETTINGS_BAR_H - 2, TD_CLR_ACCENT);
+  td_canvas->setTextSize(1);
+  td_canvas->setTextColor(TD_CLR_TEXT_DIM);
+  td_canvas->setCursor(TD_SETTINGS_BAR_X, TD_SETTINGS_BAR_Y + 14);
+  td_canvas->print("min 5%");
+
+  td_draw_button(TD_SETTINGS_ABOUT_X, TD_SETTINGS_ABOUT_Y, TD_SETTINGS_ABOUT_W, TD_SETTINGS_ABOUT_H, "About", TD_CLR_GREEN, TD_CLR_GREEN);
+  td_draw_button(TD_SETTINGS_SLEEP_X, TD_SETTINGS_SLEEP_Y, TD_SETTINGS_SLEEP_W, TD_SETTINGS_SLEEP_H, "Sleep Screen", TD_CLR_ACCENT, TD_CLR_ACCENT);
+
+  bool confirm_forget = (int32_t)(td_settings_forget_until - millis()) > 0;
+  td_draw_button(
+    TD_SETTINGS_FORGET_X,
+    TD_SETTINGS_FORGET_Y,
+    TD_SETTINGS_FORGET_W,
+    TD_SETTINGS_FORGET_H,
+    confirm_forget ? "Confirm Forget BLE" : "Forget BLE Bonds",
+    confirm_forget ? TD_CLR_WARN : TD_CLR_BORDER,
+    confirm_forget ? TD_CLR_WARN : TD_CLR_TEXT_SECONDARY,
+    confirm_forget
+  );
+
+  if (td_settings_status_msg && (int32_t)(td_settings_status_until - millis()) > 0) {
+    td_draw_centered_text(td_settings_status_msg, 10, TD_FOOT_Y - 17, TD_W - 20, 1, TD_CLR_TEXT_DIM);
+  } else {
+    td_settings_status_msg = nullptr;
+  }
+}
+
+void td_draw_about_screen() {
+  td_canvas->fillRect(0, TD_BAR_H + 1, TD_W, TD_FOOT_Y - TD_BAR_H - 1, TD_CLR_BG);
+
+  int px = 34;
+  int py = 44;
+  int pw = 252;
+  int ph = 168;
+  td_canvas->fillRoundRect(px, py, pw, ph, 8, TD_CLR_BG_PANEL);
+  td_canvas->drawRoundRect(px, py, pw, ph, 8, TD_CLR_ACCENT);
+
+  td_canvas->setTextSize(2);
+  td_canvas->setTextColor(TD_CLR_TEXT_PRIMARY);
+  td_canvas->setCursor(px + 20, py + 16);
+  td_canvas->print("About RNode");
+
+  char line[36];
+  td_canvas->setTextSize(1);
+  td_canvas->setTextColor(TD_CLR_TEXT_SECONDARY);
+
+  snprintf(line, sizeof(line), "rsDeck v%d.%d.%d", RSDECK_VERSION_MAJOR, RSDECK_VERSION_MINOR, RSDECK_VERSION_PATCH);
+  td_canvas->setCursor(px + 20, py + 54);
+  td_canvas->print(line);
+
+  snprintf(line, sizeof(line), "RNode v%d.%02d", MAJ_VERS, MIN_VERS);
+  td_canvas->setCursor(px + 20, py + 72);
+  td_canvas->print(line);
+
+  uint32_t total_s = millis() / 1000;
+  uint32_t days = total_s / 86400;
+  uint32_t hours = (total_s / 3600) % 24;
+  uint32_t mins = (total_s / 60) % 60;
+  uint32_t secs = total_s % 60;
+  if (days > 0) {
+    snprintf(line, sizeof(line), "Uptime %lud %02lu:%02lu:%02lu",
+      (unsigned long)days, (unsigned long)hours, (unsigned long)mins, (unsigned long)secs);
+  } else {
+    snprintf(line, sizeof(line), "Uptime %02lu:%02lu:%02lu",
+      (unsigned long)hours, (unsigned long)mins, (unsigned long)secs);
+  }
+  td_canvas->setCursor(px + 20, py + 90);
+  td_canvas->print(line);
+
+  int bonds = bt_bond_count();
+  snprintf(line, sizeof(line), "BLE bonds %d", bonds);
+  td_canvas->setCursor(px + 20, py + 108);
+  td_canvas->print(line);
+
+  td_draw_button(TD_ABOUT_CLOSE_X, TD_ABOUT_CLOSE_Y, TD_ABOUT_CLOSE_W, TD_ABOUT_CLOSE_H, "Close", TD_CLR_ACCENT, TD_CLR_ACCENT);
+}
+
 void td_draw_external_framebuffer() {
   int scale = 3;
   int ox = (TD_LEFT_W - 64 * scale) / 2;
@@ -622,8 +968,19 @@ void td_render_frame() {
 
   td_canvas->fillScreen(TD_CLR_BG);
   td_draw_statusbar();
-  td_draw_waterfall();
   td_draw_footer();
+
+  if (td_view == TD_VIEW_SETTINGS) {
+    td_draw_settings_screen();
+    return;
+  }
+
+  if (td_view == TD_VIEW_ABOUT) {
+    td_draw_about_screen();
+    return;
+  }
+
+  td_draw_waterfall();
 
   if (disp_ext_fb && bt_ssp_pin == 0) {
     td_draw_external_framebuffer();

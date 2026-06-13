@@ -244,7 +244,7 @@ bool ReticulumManager::begin(SX1262* radio, FlashStore* flash, bool loraEnabled)
         if (packet.context() == RNS::Type::Packet::PATH_RESPONSE) return true;
 
         // Adaptive rate: tighter during first 60s boot flood, then normal
-        unsigned int maxRate = (now < 60000) ? 3 : RATDECK_MAX_ANNOUNCES_PER_SEC;
+        unsigned int maxRate = (now < 60000) ? 3 : RSDECK_MAX_ANNOUNCES_PER_SEC;
         if (++count > maxRate) { ReticulumManager::_announceFilterCount++; return false; }
 
         return true;
@@ -349,7 +349,7 @@ void ReticulumManager::loop() {
 
 // Synchronous persist — one cycle per call to spread I/O across intervals.
 // Runs on core 1 (main loop) to avoid data races with microReticulum's
-// single-threaded transport state. Ratdeck is an endpoint, not a transport
+// single-threaded transport state. rsDeck is an endpoint, not a transport
 // node, so path tables are intentionally not persisted across boots.
 void ReticulumManager::persistData() {
     unsigned long start = millis();

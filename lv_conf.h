@@ -3,9 +3,9 @@
 
 #include <stdint.h>
 
-// Forward-declare custom ratdeck fonts for LV_FONT_DEFAULT
+// Forward-declare custom rsDeck fonts for LV_FONT_DEFAULT
 typedef struct _lv_font_t lv_font_t;
-extern const lv_font_t lv_font_ratdeck_14;
+extern const lv_font_t lv_font_rsdeck_14;
 
 // Color depth: 16-bit RGB565
 #define LV_COLOR_DEPTH 16
@@ -41,13 +41,13 @@ extern const lv_font_t lv_font_ratdeck_14;
 #define LV_USE_THEME_DEFAULT 0
 #define LV_THEME_DEFAULT_DARK 0
 
-// Fonts - built-in (only 16 still used for titles; 10/12/14 replaced by custom ratdeck fonts)
+// Fonts - built-in (only 16 still used for titles; 10/12/14 replaced by custom rsDeck fonts)
 #define LV_FONT_MONTSERRAT_10 0
 #define LV_FONT_MONTSERRAT_12 1  // Delivery-status check glyphs in LvMessageView
 #define LV_FONT_MONTSERRAT_14 0
 #define LV_FONT_MONTSERRAT_16 1
 #define LV_FONT_UNSCII_8      0
-#define LV_FONT_DEFAULT        &lv_font_ratdeck_14
+#define LV_FONT_DEFAULT        &lv_font_rsdeck_14
 
 // Widgets — only enable what we actually use
 #define LV_USE_LABEL      1

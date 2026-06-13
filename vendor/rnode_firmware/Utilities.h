@@ -1767,6 +1767,11 @@ void bt_conf_save(bool is_enabled) {
 }
 
 void di_conf_save(uint8_t dint) {
+	#if BOARD_MODEL == BOARD_TDECK
+		if (dint != 0 && dint != 0xFF) {
+			dint = tdeck_display_encode_intensity(dint);
+		}
+	#endif
 	eeprom_update(eeprom_addr(ADDR_CONF_DINT), dint);
 }
 

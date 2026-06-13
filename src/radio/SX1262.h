@@ -65,6 +65,8 @@ public:
     uint8_t getPacketType();
     uint16_t getIrqFlags();
     float getAirtime(uint16_t written);
+    uint32_t getBitrate();
+    bool lowDataRateEnabled() const { return _ldro; }
 
     // --- FIFO access ---
     void readBuffer(uint8_t* buffer, size_t size);

@@ -1,7 +1,7 @@
 #include "FlashStore.h"
 
 bool FlashStore::begin() {
-    // Standalone ratdeck labels this partition "littlefs"; bmorcelli/Launcher
+    // Legacy standalone builds label this partition "littlefs"; bmorcelli/Launcher
     // labels the equivalent partition "spiffs". Try ours first, fall back.
     const char* labels[] = { "littlefs", "spiffs" };
     bool mounted = false;

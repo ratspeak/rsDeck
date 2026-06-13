@@ -1,4 +1,4 @@
-name: PlatformIO Build
+name: Firmware Build
 
 on:
   push:
@@ -11,55 +11,6 @@ env:
   ARDUINO_CLI_VERSION: 1.4.1
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-
-      - name: Install PlatformIO
-        run: pip install platformio esptool
-
-      - name: Build firmware
-        run: pio run -e ratdeck_915
-
-      - name: Merge single .bin for M5Burner
-        run: |
-          esptool.py --chip esp32s3 merge-bin \
-            --flash-mode dio --flash-size 16MB \
-            -o ratdeck-merged.bin \
-            0x0000 .pio/build/ratdeck_915/bootloader.bin \
-            0x8000 .pio/build/ratdeck_915/partitions.bin \
-            0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
-            0x10000 .pio/build/ratdeck_915/firmware.bin
-
-      - name: Package firmware ZIP
-        run: |
-          mkdir -p ratdeck-firmware
-          cp .pio/build/ratdeck_915/bootloader.bin ratdeck-firmware/
-          cp .pio/build/ratdeck_915/partitions.bin ratdeck-firmware/
-          cp ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin ratdeck-firmware/
-          cp .pio/build/ratdeck_915/firmware.bin ratdeck-firmware/
-          cat > ratdeck-firmware/manifest.json << 'MANIFEST'
-          {
-            "chipFamily": "ESP32-S3",
-            "flashSize": "16MB",
-            "flashMode": "dio",
-            "flashFreq": "80m",
-            "parts": [
-              { "path": "bootloader.bin", "offset": "0x0000" },
-              { "path": "partitions.bin", "offset": "0x8000" },
-              { "path": "boot_app0.bin", "offset": "0xe000" },
-              { "path": "firmware.bin", "offset": "0x10000" }
-            ]
-          }
-          MANIFEST
-          cd ratdeck-firmware && zip -r ../ratdeck-firmware.zip . && cd ..
-
   package:
     runs-on: ubuntu-latest
     steps:
@@ -81,9 +32,9 @@ jobs:
         run: pip install platformio esptool
 
       - name: Prepare RNode Arduino dependencies
-        run: make prep-tdeck
+        run: make -C vendor/rnode_firmware prep-esp32
 
-      - name: Build dual-boot package
+      - name: Build release package
         run: make package
 
       - name: Upload firmware artifacts
@@ -93,7 +44,7 @@ jobs:
           path: dist/*
 
   release:
-    needs: [build, package]
+    needs: package
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -106,45 +57,6 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install PlatformIO
-        run: pip install platformio esptool
-
-      - name: Build firmware
-        run: pio run -e ratdeck_915
-
-      - name: Merge single .bin for M5Burner
-        run: |
-          esptool.py --chip esp32s3 merge-bin \
-            --flash-mode dio --flash-size 16MB \
-            -o ratdeck-merged.bin \
-            0x0000 .pio/build/ratdeck_915/bootloader.bin \
-            0x8000 .pio/build/ratdeck_915/partitions.bin \
-            0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
-            0x10000 .pio/build/ratdeck_915/firmware.bin
-
-      - name: Package firmware ZIP
-        run: |
-          mkdir -p ratdeck-firmware
-          cp .pio/build/ratdeck_915/bootloader.bin ratdeck-firmware/
-          cp .pio/build/ratdeck_915/partitions.bin ratdeck-firmware/
-          cp ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin ratdeck-firmware/
-          cp .pio/build/ratdeck_915/firmware.bin ratdeck-firmware/
-          cat > ratdeck-firmware/manifest.json << 'MANIFEST'
-          {
-            "chipFamily": "ESP32-S3",
-            "flashSize": "16MB",
-            "flashMode": "dio",
-            "flashFreq": "80m",
-            "parts": [
-              { "path": "bootloader.bin", "offset": "0x0000" },
-              { "path": "partitions.bin", "offset": "0x8000" },
-              { "path": "boot_app0.bin", "offset": "0xe000" },
-              { "path": "firmware.bin", "offset": "0x10000" }
-            ]
-          }
-          MANIFEST
-          cd ratdeck-firmware && zip -r ../ratdeck-firmware.zip . && cd ..
-
       - name: Install Arduino CLI
         run: |
           mkdir -p "$RUNNER_TEMP/arduino-cli"
@@ -152,24 +64,36 @@ jobs:
             | BINDIR="$RUNNER_TEMP/arduino-cli" sh -s "$ARDUINO_CLI_VERSION"
           echo "$RUNNER_TEMP/arduino-cli" >> "$GITHUB_PATH"
 
-      - name: Prepare RNode Arduino dependencies
-        run: make prep-tdeck
+      - name: Install Python tools
+        run: pip install platformio esptool
 
-      - name: Build dual-boot package
+      - name: Prepare RNode Arduino dependencies
+        run: make -C vendor/rnode_firmware prep-esp32
+
+      - name: Build release package
         run: make package
 
       - name: Create Release
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           release_args=(--generate-notes)
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then
             release_args+=(--prerelease)
           fi
 
-          assets=(ratdeck-firmware.zip ratdeck-merged.bin dist/*)
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
+          artifacts=(
+            dist/rsdeck-full.zip
+            dist/rsdeck-standalone.zip
+            dist/rsdeck-rnode.zip
+            dist/rsdeck-standalone-m5launcher.bin
+            dist/rsdeck-rnode-m5launcher.bin
+          )
+
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${artifacts[@]}" --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create "$GITHUB_REF_NAME" "${assets[@]}" "${release_args[@]}"
+            gh release create "$GITHUB_REF_NAME" "${artifacts[@]}" "${release_args[@]}" --repo "$GITHUB_REPOSITORY"
           fi

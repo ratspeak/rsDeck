@@ -362,8 +362,8 @@ bool MessageStore::saveMessage(LXMFMessage& msg) {
             if (isPendingStatus(msg.status) && s.pendingCount < UINT16_MAX) s.pendingCount++;
             if (msg.status == LXMFStatus::FAILED && s.failedCount < UINT16_MAX) s.failedCount++;
         }
-        int limit = sdOk ? RATDECK_MAX_MESSAGES_PER_CONV
-                         : ((_externalStorageEnabled && _sd && _sd->isReady()) ? FLASH_MSG_CACHE_LIMIT : RATDECK_MAX_MESSAGES_PER_CONV);
+        int limit = sdOk ? RSDECK_MAX_MESSAGES_PER_CONV
+                         : ((_externalStorageEnabled && _sd && _sd->isReady()) ? FLASH_MSG_CACHE_LIMIT : RSDECK_MAX_MESSAGES_PER_CONV);
         if (s.totalCount > limit) {
             rebuildSummary(peerHex);
         }
@@ -965,7 +965,7 @@ void MessageStore::enforceFlashLimit(const std::string& peerHex) {
         }
         entry = d.openNextFile();
     }
-    int limit = (_externalStorageEnabled && _sd && _sd->isReady()) ? FLASH_MSG_CACHE_LIMIT : RATDECK_MAX_MESSAGES_PER_CONV;
+    int limit = (_externalStorageEnabled && _sd && _sd->isReady()) ? FLASH_MSG_CACHE_LIMIT : RSDECK_MAX_MESSAGES_PER_CONV;
     if ((int)files.size() <= limit) return;
     std::sort(files.begin(), files.end());
     int excess = files.size() - limit;
@@ -993,9 +993,9 @@ void MessageStore::enforceSDLimit(const std::string& peerHex) {
         }
         entry = d.openNextFile();
     }
-    if ((int)files.size() <= RATDECK_MAX_MESSAGES_PER_CONV) return;
+    if ((int)files.size() <= RSDECK_MAX_MESSAGES_PER_CONV) return;
     std::sort(files.begin(), files.end());
-    int excess = files.size() - RATDECK_MAX_MESSAGES_PER_CONV;
+    int excess = files.size() - RSDECK_MAX_MESSAGES_PER_CONV;
     for (int i = 0; i < excess; i++) {
         _sd->remove(files[i].c_str());
     }

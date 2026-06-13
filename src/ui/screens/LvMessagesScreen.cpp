@@ -121,13 +121,13 @@ void LvMessagesScreen::createUI(lv_obj_t* parent) {
     lv_obj_align(emptyIcon, LV_ALIGN_TOP_MID, 0, 15);
 
     lv_obj_t* emptyTitle = lv_label_create(_lblEmpty);
-    lv_obj_set_style_text_font(emptyTitle, &lv_font_ratdeck_14, 0);
+    lv_obj_set_style_text_font(emptyTitle, &lv_font_rsdeck_14, 0);
     lv_obj_set_style_text_color(emptyTitle, lv_color_hex(Theme::TEXT_PRIMARY), 0);
     lv_label_set_text(emptyTitle, "No conversations");
     lv_obj_align(emptyTitle, LV_ALIGN_TOP_MID, 0, 34);
 
     lv_obj_t* emptySub = lv_label_create(_lblEmpty);
-    lv_obj_set_style_text_font(emptySub, &lv_font_ratdeck_12, 0);
+    lv_obj_set_style_text_font(emptySub, &lv_font_rsdeck_12, 0);
     lv_obj_set_style_text_color(emptySub, lv_color_hex(Theme::TEXT_SECONDARY), 0);
     lv_label_set_text(emptySub, "LXMF inbox is clear");
     lv_obj_align(emptySub, LV_ALIGN_TOP_MID, 0, 56);
@@ -241,8 +241,8 @@ void LvMessagesScreen::rebuildList() {
     for (auto& ci : _sortedConvs) _sortedPeers.push_back(ci.peerHex);
 
     // Build list items with focus group support
-    const lv_font_t* nameFont = &lv_font_ratdeck_14;
-    const lv_font_t* smallFont = &lv_font_ratdeck_12;
+    const lv_font_t* nameFont = &lv_font_rsdeck_14;
+    const lv_font_t* smallFont = &lv_font_rsdeck_12;
 
     for (int i = 0; i < count; i++) {
         const auto& ci = _sortedConvs[i];
@@ -319,7 +319,7 @@ void LvMessagesScreen::rebuildList() {
         char timeBuf[8];
         if (formatClock(ci.lastTs, timeBuf, sizeof(timeBuf))) {
             lv_obj_t* timeLbl = lv_label_create(row);
-            lv_obj_set_style_text_font(timeLbl, &lv_font_ratdeck_10, 0);
+            lv_obj_set_style_text_font(timeLbl, &lv_font_rsdeck_10, 0);
             lv_obj_set_style_text_color(timeLbl, lv_color_hex(ci.hasUnread ? Theme::PRIMARY : Theme::TEXT_MUTED), 0);
             lv_label_set_text(timeLbl, timeBuf);
             lv_obj_align(timeLbl, LV_ALIGN_TOP_RIGHT, -8, 7);
@@ -370,7 +370,7 @@ void LvMessagesScreen::rebuildList() {
             lv_obj_clear_flag(chip, LV_OBJ_FLAG_SCROLLABLE);
 
             lv_obj_t* chipLbl = lv_label_create(chip);
-            lv_obj_set_style_text_font(chipLbl, &lv_font_ratdeck_10, 0);
+            lv_obj_set_style_text_font(chipLbl, &lv_font_rsdeck_10, 0);
             lv_obj_set_style_text_color(chipLbl, lv_color_hex(chipColor), 0);
             lv_label_set_text(chipLbl, chipBuf);
             lv_obj_center(chipLbl);
@@ -430,7 +430,7 @@ void LvMessagesScreen::rebuildActionOverlay(const char* title, const char* const
     lv_obj_clear_flag(_actionOverlay, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t* titleLbl = lv_label_create(_actionOverlay);
-    lv_obj_set_style_text_font(titleLbl, &lv_font_ratdeck_12, 0);
+    lv_obj_set_style_text_font(titleLbl, &lv_font_rsdeck_12, 0);
     lv_obj_set_style_text_color(titleLbl, lv_color_hex(Theme::ACCENT), 0);
     lv_label_set_long_mode(titleLbl, LV_LABEL_LONG_DOT);
     lv_obj_set_width(titleLbl, 220);
@@ -458,7 +458,7 @@ void LvMessagesScreen::rebuildActionOverlay(const char* title, const char* const
         }, LV_EVENT_CLICKED, this);
 
         lv_obj_t* lbl = lv_label_create(row);
-        lv_obj_set_style_text_font(lbl, &lv_font_ratdeck_12, 0);
+        lv_obj_set_style_text_font(lbl, &lv_font_rsdeck_12, 0);
         lv_obj_set_style_text_color(lbl, lv_color_hex(Theme::TEXT_PRIMARY), 0);
         lv_label_set_long_mode(lbl, LV_LABEL_LONG_DOT);
         lv_obj_set_width(lbl, 200);

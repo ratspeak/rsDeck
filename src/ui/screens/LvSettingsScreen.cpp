@@ -490,6 +490,7 @@ void LvSettingsScreen::buildItems() {
                     }
                     entry.close();
                 }
+                dir.close();
                 if (identityFiles == 0) {
                     if (_ui) _ui->lvStatusBar().showToast("Missing identity file", 1200);
                     return;

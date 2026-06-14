@@ -89,10 +89,16 @@ String IdentityManager::importIdentityPath() const {
         bool importCandidate = !reservedIdentityFile &&
             (lower.endsWith(".identity") || lower.endsWith(".key"));
         if (importCandidate) {
-            candidate = name.startsWith("/") ? name : String(SD_PATH_IDENTITY_DIR) + "/" + name;
+            candidate = name;
+            if (!candidate.startsWith("/")) {
+                int slash = candidate.lastIndexOf('/');
+                if (slash >= 0) candidate = candidate.substring(slash + 1);
+                candidate = String(SD_PATH_IDENTITY_DIR) + "/" + candidate;
+            }
             candidates++;
         }
     }
+    dir.close();
     if (candidates == 1) return candidate;
     if (candidates > 1) Serial.println("[IDMGR] Multiple import identity files found on SD");
     return "";
@@ -122,6 +128,14 @@ int IdentityManager::importIdentity(const String& displayName) {
         Serial.println("[IDMGR] Import identity key failed validation");
         return -1;
     }
+    std::string importedHash = imported.hexhash();
+    for (const auto& slot : _slots) {
+        if (slot.hash == importedHash) {
+            Serial.printf("[IDMGR] Imported identity already exists: %s\n",
+                          importedHash.substr(0, 16).c_str());
+            return -1;
+        }
+    }
 
     int slotNum = (int)_slots.size();
     String keyPath = slotKeyPath(slotNum);
@@ -131,7 +145,7 @@ int IdentityManager::importIdentity(const String& displayName) {
     }
 
     IdentitySlot slot;
-    slot.hash = imported.hexhash();
+    slot.hash = importedHash;
     slot.displayName = "";
     slot.keyPath = keyPath;
     slot.active = false;

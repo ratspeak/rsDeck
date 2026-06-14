@@ -203,20 +203,20 @@ bool LvSettingsScreen::categoryNeedsReboot(int catIdx) const {
 bool LvSettingsScreen::confirmableAction(const SettingItem& item) const {
     return labelEq(item.label, "Developer Radio Controls")
         || labelEq(item.label, "Format SD Card")
-        || labelEq(item.label, "Erase Ratdeck SD Data")
+        || labelEq(item.label, "Erase rsDeck SD Data")
         || labelEq(item.label, "Erase Device");
 }
 
 bool LvSettingsScreen::armedAction(const SettingItem& item) const {
     return (_confirmingInitSD && labelEq(item.label, "Format SD Card")) ||
-        (_confirmingWipeSD && labelEq(item.label, "Erase Ratdeck SD Data")) ||
+        (_confirmingWipeSD && labelEq(item.label, "Erase rsDeck SD Data")) ||
         (_confirmingReset && labelEq(item.label, "Erase Device")) ||
         (_confirmingDevMode && labelEq(item.label, "Developer Radio Controls"));
 }
 
 bool LvSettingsScreen::destructiveAction(const SettingItem& item) const {
     return labelEq(item.label, "Format SD Card")
-        || labelEq(item.label, "Erase Ratdeck SD Data")
+        || labelEq(item.label, "Erase rsDeck SD Data")
         || labelEq(item.label, "Erase Device");
 }
 
@@ -255,7 +255,7 @@ void LvSettingsScreen::runFormatSD() {
         return;
     }
     if (_ui) _ui->lvStatusBar().showToast("Formatting SD card...", 2000);
-    bool ok = _sd->formatForRatdeck();
+    bool ok = _sd->formatForRsDeck();
     if (_ui) _ui->lvStatusBar().showToast(ok ? "SD card formatted" : "SD format failed", 1500);
     rebuildItemList();
 }
@@ -267,8 +267,8 @@ void LvSettingsScreen::runWipeSD() {
         rebuildItemList();
         return;
     }
-    if (_ui) _ui->lvStatusBar().showToast("Erasing Ratdeck SD data...", 2000);
-    bool ok = _sd->wipeRatdeck();
+    if (_ui) _ui->lvStatusBar().showToast("Erasing rsDeck SD data...", 2000);
+    bool ok = _sd->wipeRsDeck();
     if (_ui) _ui->lvStatusBar().showToast(ok ? "SD data erased" : "SD erase failed", 1500);
     rebuildItemList();
 }
@@ -276,7 +276,7 @@ void LvSettingsScreen::runWipeSD() {
 void LvSettingsScreen::runFactoryReset() {
     _confirmingReset = false;
     if (_ui) _ui->lvStatusBar().showToast("Erasing device...", 3000);
-    if (_sd && _sd->isReady()) _sd->wipeRatdeck();
+    if (_sd && _sd->isReady()) _sd->wipeRsDeck();
     if (_flash) _flash->format();
     nvs_flash_erase();
     delay(1500);  // Long enough for key state to clear before reboot
@@ -336,7 +336,7 @@ void LvSettingsScreen::firmwareCheckTask(void* arg) {
     HTTPClient http;
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     http.setTimeout(5000);
-    if (http.begin("https://api.github.com/repos/ratspeak/ratdeck/releases/latest")) {
+    if (http.begin("https://api.github.com/repos/ratspeak/rsDeck/releases/latest")) {
         http.addHeader("Accept", "application/vnd.github.v3+json");
         int httpCode = http.GET();
         if (httpCode == 200) {
@@ -355,7 +355,7 @@ void LvSettingsScreen::firmwareCheckTask(void* arg) {
                 delay(10);
             }
             if (extractReleaseTag(payload, version, sizeof(version))) {
-                result = strcmp(version, RATDECK_VERSION_STRING) > 0
+                result = strcmp(version, RSDECK_VERSION_STRING) > 0
                     ? FirmwareCheckState::AVAILABLE
                     : FirmwareCheckState::CURRENT;
             }
@@ -379,7 +379,7 @@ void LvSettingsScreen::buildItems() {
     // Identity & Device
     int devStart = idx;
     _items.push_back({"Firmware", SettingType::READONLY, nullptr, nullptr,
-        [](int) { return String(RATDECK_VERSION_STRING); }});
+        [](int) { return String(RSDECK_VERSION_STRING); }});
     idx++;
     _items.push_back({"LXMF Address", SettingType::READONLY, nullptr, nullptr,
         [this](int) { return _destinationHash.length() > 0 ? _destinationHash : String("unknown"); }});
@@ -463,6 +463,63 @@ void LvSettingsScreen::buildItems() {
         _items.push_back(newId);
         idx++;
     }
+    if (_sd && _sd->isReady()) {
+        SettingItem importId;
+        importId.label = "Import Identity";
+        importId.type = SettingType::ACTION;
+        importId.formatter = [](int) { return String("[Enter]"); };
+        importId.action = [this, &s]() {
+            if (!_sd || !_sd->isReady()) {
+                if (_ui) _ui->lvStatusBar().showToast("No SD card", 1200);
+                return;
+            }
+            if (!_sd->exists(SD_PATH_IMPORT_IDENTITY) && !_sd->exists(SD_PATH_IMPORT_ID)) {
+                File dir = _sd->openDir(SD_PATH_IDENTITY_DIR);
+                int identityFiles = 0;
+                while (dir) {
+                    File entry = dir.openNextFile();
+                    if (!entry) break;
+                    if (!entry.isDirectory()) {
+                        String name = entry.name();
+                        name.toLowerCase();
+                        bool reservedIdentityFile = name == "identity.key" || name.endsWith("/identity.key") ||
+                            name == "identity.identity" || name.endsWith("/identity.identity");
+                        if (!reservedIdentityFile && (name.endsWith(".identity") || name.endsWith(".key"))) {
+                            identityFiles++;
+                        }
+                    }
+                    entry.close();
+                }
+                dir.close();
+                if (identityFiles == 0) {
+                    if (_ui) _ui->lvStatusBar().showToast("Missing identity file", 1200);
+                    return;
+                }
+                if (identityFiles > 1) {
+                    if (_ui) _ui->lvStatusBar().showToast("Rename one import.identity", 1500);
+                    return;
+                }
+            }
+            if (!_idMgr) {
+                if (_ui) _ui->lvStatusBar().showToast("Not available", 1200);
+                return;
+            }
+            if (_idMgr->count() >= 8) {
+                if (_ui) _ui->lvStatusBar().showToast("Identity slots full", 1200);
+                return;
+            }
+            int idx = _idMgr->importIdentity(s.displayName);
+            if (idx >= 0) {
+                if (_ui) _ui->lvStatusBar().showToast("Identity imported", 1200);
+                buildItems();
+                rebuildCategoryList();
+            } else if (_ui) {
+                _ui->lvStatusBar().showToast("Identity import failed", 1200);
+            }
+        };
+        _items.push_back(importId);
+        idx++;
+    }
     _items.push_back({"Auto Announce", SettingType::INTEGER,
         [&s]() { return s.announceInterval; }, [&s](int v) { s.announceInterval = v; },
         [](int v) { return String(v) + "m"; }, 30, 60 * 6, 5}); // 30m - 6h
@@ -480,6 +537,17 @@ void LvSettingsScreen::buildItems() {
         [&s]() { return s.brightness; }, [&s](int v) { s.brightness = v; },
         [](int v) { return String(v) + "%"; }, 5, 100, 5});
     idx++;
+    {
+        SettingItem themeItem;
+        themeItem.label = "Theme";
+        themeItem.type = SettingType::ENUM_CHOICE;
+        themeItem.getter = [&s]() { return s.themeLight ? 1 : 0; };
+        themeItem.setter = [&s](int v) { s.themeLight = (v != 0); };
+        themeItem.minVal = 0; themeItem.maxVal = 1; themeItem.step = 1;
+        themeItem.enumLabels = {"Dark", "Light"};
+        _items.push_back(themeItem);
+        idx++;
+    }
     _items.push_back({"Dim After", SettingType::INTEGER,
         [&s]() { return s.screenDimTimeout; }, [&s](int v) { s.screenDimTimeout = v; },
         [](int v) { return String(v) + "s"; }, 5, 300, 5});
@@ -1007,7 +1075,7 @@ void LvSettingsScreen::buildItems() {
     }
     {
         SettingItem wipeSD;
-        wipeSD.label = "Erase Ratdeck SD Data";
+        wipeSD.label = "Erase rsDeck SD Data";
         wipeSD.type = SettingType::ACTION;
         wipeSD.formatter = [this](int) {
             if (!_sd || !_sd->isReady()) return String("No Card");
@@ -1158,7 +1226,7 @@ void LvSettingsScreen::rebuildCategoryList() {
     _rowObjs.clear();
     lv_obj_clean(_scrollContainer);
 
-    const lv_font_t* font = &lv_font_ratdeck_12;
+    const lv_font_t* font = &lv_font_rsdeck_12;
 
     // Title
     lv_obj_t* titleRow = lv_obj_create(_scrollContainer);
@@ -1179,7 +1247,7 @@ void LvSettingsScreen::rebuildCategoryList() {
 
     if (_rebootNeeded) {
         lv_obj_t* pendingLbl = lv_label_create(titleRow);
-        lv_obj_set_style_text_font(pendingLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(pendingLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(pendingLbl, lv_color_hex(Theme::WARNING_CLR), 0);
         lv_label_set_text(pendingLbl, "REBOOT PENDING");
         lv_obj_align(pendingLbl, LV_ALIGN_RIGHT_MID, -8, 0);
@@ -1224,7 +1292,7 @@ void LvSettingsScreen::rebuildCategoryList() {
         char countBuf[8];
         snprintf(countBuf, sizeof(countBuf), "%d", cat.count);
         lv_obj_t* countLbl = lv_label_create(row);
-        lv_obj_set_style_text_font(countLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(countLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(countLbl, lv_color_hex(Theme::TEXT_MUTED), 0);
         lv_label_set_text(countLbl, countBuf);
         lv_obj_align(countLbl, LV_ALIGN_TOP_RIGHT, -24, 5);
@@ -1232,7 +1300,7 @@ void LvSettingsScreen::rebuildCategoryList() {
         // Summary
         if (cat.summary) {
             lv_obj_t* sumLbl = lv_label_create(row);
-            lv_obj_set_style_text_font(sumLbl, &lv_font_ratdeck_10, 0);
+            lv_obj_set_style_text_font(sumLbl, &lv_font_rsdeck_10, 0);
             lv_obj_set_style_text_color(sumLbl, lv_color_hex(pending ? Theme::WARNING_CLR : Theme::TEXT_MUTED), 0);
             clipLabel(sumLbl, Theme::CONTENT_W - 44);
             lv_label_set_text(sumLbl, cat.summary().c_str());
@@ -1261,7 +1329,7 @@ void LvSettingsScreen::rebuildItemList() {
     _editValueLbl = nullptr;  // Invalidate cached label before destroying widgets
     lv_obj_clean(_scrollContainer);
 
-    const lv_font_t* font = &lv_font_ratdeck_12;
+    const lv_font_t* font = &lv_font_rsdeck_12;
 
     // Category header
     lv_obj_t* headerRow = lv_obj_create(_scrollContainer);
@@ -1291,7 +1359,7 @@ void LvSettingsScreen::rebuildItemList() {
 
     if (_rebootNeeded) {
         lv_obj_t* pendingLbl = lv_label_create(headerRow);
-        lv_obj_set_style_text_font(pendingLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(pendingLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(pendingLbl, lv_color_hex(Theme::WARNING_CLR), 0);
         lv_label_set_text(pendingLbl, "REBOOT NEEDED");
         lv_obj_align(pendingLbl, LV_ALIGN_RIGHT_MID, -8, 0);
@@ -1310,7 +1378,7 @@ void LvSettingsScreen::rebuildItemList() {
         lv_obj_clear_flag(notice, LV_OBJ_FLAG_SCROLLABLE);
 
         lv_obj_t* noticeLbl = lv_label_create(notice);
-        lv_obj_set_style_text_font(noticeLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(noticeLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(noticeLbl, lv_color_hex(Theme::WARNING_CLR), 0);
         clipLabel(noticeLbl, Theme::CONTENT_W - 16);
         lv_label_set_text(noticeLbl, "Saved interface config is pending reboot");
@@ -1333,14 +1401,14 @@ void LvSettingsScreen::rebuildItemList() {
         lv_obj_clear_flag(confirm, LV_OBJ_FLAG_SCROLLABLE);
 
         lv_obj_t* confirmTitleLbl = lv_label_create(confirm);
-        lv_obj_set_style_text_font(confirmTitleLbl, &lv_font_ratdeck_12, 0);
+        lv_obj_set_style_text_font(confirmTitleLbl, &lv_font_rsdeck_12, 0);
         lv_obj_set_style_text_color(confirmTitleLbl, lv_color_hex(confirmColor), 0);
         clipLabel(confirmTitleLbl, Theme::CONTENT_W - 16);
         lv_label_set_text(confirmTitleLbl, confirmTitle);
         lv_obj_align(confirmTitleLbl, LV_ALIGN_TOP_LEFT, 8, 3);
 
         lv_obj_t* confirmDetailLbl = lv_label_create(confirm);
-        lv_obj_set_style_text_font(confirmDetailLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(confirmDetailLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(confirmDetailLbl, lv_color_hex(Theme::TEXT_PRIMARY), 0);
         clipLabel(confirmDetailLbl, Theme::CONTENT_W - 16);
         lv_label_set_text(confirmDetailLbl, confirmDetail);
@@ -1517,7 +1585,7 @@ void LvSettingsScreen::rebuildWifiList() {
     _rowObjs.clear();
     lv_obj_clean(_scrollContainer);
 
-    const lv_font_t* font = &lv_font_ratdeck_12;
+    const lv_font_t* font = &lv_font_rsdeck_12;
 
     // Header
     lv_obj_t* headerRow = lv_obj_create(_scrollContainer);
@@ -1593,7 +1661,7 @@ void LvSettingsScreen::rebuildWifiList() {
         char sigBuf[12];
         snprintf(sigBuf, sizeof(sigBuf), "%ddBm", net.rssi);
         lv_obj_t* sigLbl = lv_label_create(row);
-        lv_obj_set_style_text_font(sigLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(sigLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(sigLbl, lv_color_hex(Theme::TEXT_MUTED), 0);
         lv_label_set_text(sigLbl, sigBuf);
         lv_obj_align(sigLbl, LV_ALIGN_RIGHT_MID, -4, 0);
@@ -1921,7 +1989,7 @@ bool LvSettingsScreen::handleLongPress() {
         runFormatSD();
         return true;
     }
-    if (_confirmingWipeSD && labelEq(item.label, "Erase Ratdeck SD Data")) {
+    if (_confirmingWipeSD && labelEq(item.label, "Erase rsDeck SD Data")) {
         runWipeSD();
         return true;
     }
@@ -2037,6 +2105,15 @@ String LvSettingsScreen::freqFormatWithCursor() const {
 void LvSettingsScreen::applyAndSave() {
     if (!_cfg) return;
     auto& s = _cfg->settings();
+    // Theme switch applies live: palette globals -> shared styles -> shell.
+    // Our own rows re-read Theme:: on the rebuild that follows every commit.
+    Theme::Scheme want = s.themeLight ? Theme::Scheme::LIGHT : Theme::Scheme::DARK;
+    if (want != Theme::scheme()) {
+        Theme::setScheme(want);
+        if (_ui) _ui->applyTheme();
+        if (_screen) lv_obj_set_style_bg_color(_screen, lv_color_hex(Theme::BG), 0);
+        if (_scrollContainer) lv_obj_set_style_bg_color(_scrollContainer, lv_color_hex(Theme::BG), 0);
+    }
     if (_power) {
         _power->setBrightness(s.brightness);
         _power->setDimTimeout(s.screenDimTimeout);

@@ -11,7 +11,7 @@ bool BLESideband::begin(NimBLEServer* existingServer) {
         _pServer = existingServer;
         _ownServer = false;
     } else {
-        NimBLEDevice::init("Ratdeck");
+        NimBLEDevice::init("rsDeck");
         _pServer = NimBLEDevice::createServer();
         _ownServer = true;
     }
@@ -19,13 +19,13 @@ bool BLESideband::begin(NimBLEServer* existingServer) {
     // Create Nordic UART Service (don't set server callbacks — BLEInterface owns them)
     _pService = _pServer->createService(NUS_SERVICE_UUID);
 
-    // TX: Ratdeck -> Sideband (NOTIFY)
+    // TX: rsDeck -> Sideband (NOTIFY)
     _pTxChar = _pService->createCharacteristic(
         NUS_TX_UUID,
         NIMBLE_PROPERTY::NOTIFY
     );
 
-    // RX: Sideband -> Ratdeck (WRITE)
+    // RX: Sideband -> rsDeck (WRITE)
     _pRxChar = _pService->createCharacteristic(
         NUS_RX_UUID,
         NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR
@@ -39,7 +39,7 @@ bool BLESideband::begin(NimBLEServer* existingServer) {
         _pServer->start();
         NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
         pAdv->addServiceUUID(NUS_SERVICE_UUID);
-        pAdv->setName("Ratdeck");
+        pAdv->setName("rsDeck");
         pAdv->start();
     } else {
         // Add NUS UUID to existing advertising

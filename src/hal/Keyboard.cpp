@@ -115,10 +115,12 @@ bool Keyboard::setBacklightBrightness(uint8_t percent) {
 }
 
 bool Keyboard::backlightOn() {
+    _backlightLit = _backlightBrightness > 0;
     return setBrightness(_backlightBrightness);
 }
 
 bool Keyboard::backlightOff() {
+    _backlightLit = false;
     return setBrightness(0);
 }
 

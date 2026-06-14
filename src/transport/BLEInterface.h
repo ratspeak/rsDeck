@@ -79,7 +79,7 @@ private:
     static constexpr uint8_t FRAME_ESC   = 0x7D;
     static constexpr uint8_t FRAME_XOR   = 0x20;
 
-    // Custom UUIDs for Ratdeck BLE transport
+    // Custom UUIDs for rsDeck BLE transport
     static constexpr const char* SERVICE_UUID = "e2f0a5b1-c3d4-4e56-8f90-1a2b3c4d5e6f";
     static constexpr const char* TX_CHAR_UUID = "e2f0a5b2-c3d4-4e56-8f90-1a2b3c4d5e6f";
     static constexpr const char* RX_CHAR_UUID = "e2f0a5b3-c3d4-4e56-8f90-1a2b3c4d5e6f";

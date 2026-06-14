@@ -1,13 +1,13 @@
 #pragma once
 
 // =============================================================================
-// Ratdeck — Compile-Time Configuration
+// rsDeck — Compile-Time Configuration
 // =============================================================================
 
-#define RATDECK_VERSION_MAJOR  1
-#define RATDECK_VERSION_MINOR  9
-#define RATDECK_VERSION_PATCH  3
-#define RATDECK_VERSION_STRING "1.9.3"
+#define RSDECK_VERSION_MAJOR  2
+#define RSDECK_VERSION_MINOR  0
+#define RSDECK_VERSION_PATCH  0
+#define RSDECK_VERSION_STRING "2.0.0"
 
 // --- Feature Flags ---
 #define HAS_DISPLAY     true
@@ -19,10 +19,10 @@
 // TODO(BLE): Revisit as a dedicated Ratspeak BLE Peer transport based on the
 // rsReticulum GATT/fragmentation/anti-loop design, after T-Deck Plus memory,
 // flash, power, and interop behavior are tested end to end.
-#ifndef RATDECK_EXPERIMENTAL_BLE
-#define RATDECK_EXPERIMENTAL_BLE 0
+#ifndef RSDECK_EXPERIMENTAL_BLE
+#define RSDECK_EXPERIMENTAL_BLE 0
 #endif
-#define HAS_BLE         RATDECK_EXPERIMENTAL_BLE
+#define HAS_BLE         RSDECK_EXPERIMENTAL_BLE
 #define HAS_SD          true
 #define HAS_AUDIO       true
 #define HAS_GPS         true    // UBlox MIA-M10Q UART GPS
@@ -43,11 +43,16 @@
 #define PATH_MESSAGES       "/messages"
 
 // --- SD Card Paths ---
+// Legacy path kept intentionally so existing Standalone users keep their data.
+// TODO: Migrate to /rsdeck only with an explicit data migration plan.
 #define SD_PATH_CONFIG_DIR   "/ratdeck/config"
 #define SD_PATH_USER_CONFIG  "/ratdeck/config/user.json"
 #define SD_PATH_MESSAGES     "/ratdeck/messages"
 #define SD_PATH_CONTACTS     "/ratdeck/contacts"
+#define SD_PATH_IDENTITY_DIR "/ratdeck/identity"
 #define SD_PATH_IDENTITY     "/ratdeck/identity/identity.key"
+#define SD_PATH_IMPORT_IDENTITY "/ratdeck/identity/import.identity"
+#define SD_PATH_IMPORT_ID    "/ratdeck/identity/import.key"
 
 // --- TCP Client ---
 #define MAX_TCP_CONNECTIONS         4
@@ -56,14 +61,14 @@
 #define TCP_CONNECT_TIMEOUT_MS      500
 
 // --- Announce Flood Defense ---
-#define RATDECK_MAX_ANNOUNCES_PER_SEC 5     // Transport-level rate limit (before Ed25519 verify)
+#define RSDECK_MAX_ANNOUNCES_PER_SEC 5     // Transport-level rate limit (before Ed25519 verify)
 
 // --- Limits ---
-#define RATDECK_MAX_NODES             100   // Endpoint device, not transport node
-#define RATDECK_MAX_MESSAGES_PER_CONV 100
+#define RSDECK_MAX_NODES             100   // Endpoint device, not transport node
+#define RSDECK_MAX_MESSAGES_PER_CONV 100
 #define FLASH_MSG_CACHE_LIMIT         20
-#define RATDECK_MAX_OUTQUEUE          20
-#define RATDECK_LXMF_SINGLE_FRAME_MAX 254   // T-Deck-safe payload cap until resource transfers are fixed
+#define RSDECK_MAX_OUTQUEUE          20
+#define RSDECK_LXMF_SINGLE_FRAME_MAX 254   // T-Deck-safe payload cap until resource transfers are fixed
 #define PATH_PERSIST_INTERVAL_MS  60000
 
 // --- Power Management ---

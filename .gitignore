@@ -5,8 +5,10 @@
 .vscode/launch.json
 .vscode/ipch
 build/
+dist/
 *.bin
 *.elf
+*.map
 __pycache__
 *.pyc
 .DS_Store

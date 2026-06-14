@@ -152,13 +152,14 @@ void AnnounceManager::received_announce(
         auto& node = _nodes[it->second];
         if (node.lastSeen != 0 && now >= node.lastSeen &&
             now - node.lastSeen < ANNOUNCE_MIN_INTERVAL_MS) return;
-        if (!name.empty()) node.name = name;
+        // Saved contacts own their local alias. Incoming announce app_data is
+        // still cached below, but must not reset the user-chosen contact name.
+        if (!name.empty() && !node.saved) node.name = name;
         if (!idHex.empty()) node.identityHex = idHex;
         node.lastSeen = now;
         // hops_to() is expensive (linear routing table scan) — only call for saved contacts
         if (node.saved) node.hops = RNS::Transport::hops_to(destination_hash);
         if (_loraIf) { node.rssi = _loraIf->lastRxRssi(); node.snr = _loraIf->lastRxSnr(); }
-        if (node.saved) _contactsDirty = true;
         // Name cache update — skip expensive toHex() for unnamed re-announces
         if (!name.empty()) {
             std::string destHex = destination_hash.toHex();
@@ -227,7 +228,14 @@ void AnnounceManager::received_announce(
 
     DiscoveredNode node;
     node.hash = destination_hash;
-    node.name = name.empty() ? destHex.substr(0, 12) : name;
+    if (!name.empty()) {
+        node.name = name;
+    } else {
+        auto cached = _nameCache.find(destHex);
+        node.name = (cached != _nameCache.end() && !cached->second.empty())
+            ? cached->second
+            : destHex.substr(0, 12);
+    }
     node.identityHex = idHex;
     node.lastSeen = millis();
     // Skip hops_to() for new (unsaved) nodes — resolved when added as contact
@@ -296,7 +304,14 @@ void AnnounceManager::addManualContact(const std::string& hexHash, const std::st
 
     DiscoveredNode node;
     node.hash = hash;
-    node.name = safeName.empty() ? hexHash.substr(0, 12) : safeName;
+    if (!safeName.empty()) {
+        node.name = safeName;
+    } else {
+        auto cached = _nameCache.find(hexHash);
+        node.name = (cached != _nameCache.end() && !cached->second.empty())
+            ? cached->second
+            : hexHash.substr(0, 12);
+    }
     node.lastSeen = millis();
     node.saved = true;
     _hashIndex[key] = (int)_nodes.size();

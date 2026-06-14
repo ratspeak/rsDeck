@@ -55,6 +55,7 @@ public:
     bool setBacklightBrightness(uint8_t percent); // 0 stores off; non-zero doesn't change current brightness
     bool backlightOn();
     bool backlightOff();
+    bool backlightIsLit() const { return _backlightLit; }
 
 private:
     uint8_t readKey(uint8_t* modOut);
@@ -67,6 +68,7 @@ private:
     bool _altHeld = false;           // Software Alt tracking
     unsigned long _altPressTime = 0; // When Alt was detected
     uint8_t _backlightBrightness = 255; // [31, 255]
+    bool _backlightLit = false;         // last host-commanded state; C3 <Alt>+<B> toggles are invisible
 
     static Keyboard* _instance;
     static int _debugCount;          // Log first N keypresses

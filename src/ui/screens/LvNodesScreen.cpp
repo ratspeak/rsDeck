@@ -80,13 +80,13 @@ lv_obj_t* createEmptyState(lv_obj_t* parent) {
     }
 
     lv_obj_t* title = lv_label_create(box);
-    lv_obj_set_style_text_font(title, &lv_font_ratdeck_14, 0);
+    lv_obj_set_style_text_font(title, &lv_font_rsdeck_14, 0);
     lv_obj_set_style_text_color(title, lv_color_hex(Theme::TEXT_SECONDARY), 0);
     lv_label_set_text(title, "No peers heard");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 34);
 
     lv_obj_t* hint = lv_label_create(box);
-    lv_obj_set_style_text_font(hint, &lv_font_ratdeck_10, 0);
+    lv_obj_set_style_text_font(hint, &lv_font_rsdeck_10, 0);
     lv_obj_set_style_text_color(hint, lv_color_hex(Theme::TEXT_MUTED), 0);
     lv_label_set_text(hint, "Listening for announces");
     lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 55);
@@ -122,21 +122,21 @@ void LvNodesScreen::createUI(lv_obj_t* parent) {
     lv_obj_add_flag(_overlay, LV_OBJ_FLAG_HIDDEN);
 
     _overlayTitle = lv_label_create(_overlay);
-    lv_obj_set_style_text_font(_overlayTitle, &lv_font_ratdeck_14, 0);
+    lv_obj_set_style_text_font(_overlayTitle, &lv_font_rsdeck_14, 0);
     lv_obj_set_style_text_color(_overlayTitle, lv_color_hex(Theme::ACCENT), 0);
     lv_label_set_long_mode(_overlayTitle, LV_LABEL_LONG_CLIP);
     lv_obj_set_width(_overlayTitle, 236);
     lv_obj_set_pos(_overlayTitle, 12, 9);
 
     _overlayMeta = lv_label_create(_overlay);
-    lv_obj_set_style_text_font(_overlayMeta, &lv_font_ratdeck_10, 0);
+    lv_obj_set_style_text_font(_overlayMeta, &lv_font_rsdeck_10, 0);
     lv_obj_set_style_text_color(_overlayMeta, lv_color_hex(Theme::TEXT_MUTED), 0);
     lv_label_set_long_mode(_overlayMeta, LV_LABEL_LONG_CLIP);
     lv_obj_set_width(_overlayMeta, 236);
     lv_obj_set_pos(_overlayMeta, 12, 29);
 
     _overlayReach = lv_label_create(_overlay);
-    lv_obj_set_style_text_font(_overlayReach, &lv_font_ratdeck_10, 0);
+    lv_obj_set_style_text_font(_overlayReach, &lv_font_rsdeck_10, 0);
     lv_obj_set_style_text_color(_overlayReach, lv_color_hex(Theme::TEXT_SECONDARY), 0);
     lv_label_set_long_mode(_overlayReach, LV_LABEL_LONG_CLIP);
     lv_obj_set_width(_overlayReach, 236);
@@ -166,7 +166,7 @@ void LvNodesScreen::createUI(lv_obj_t* parent) {
         }, LV_EVENT_CLICKED, this);
 
         _menuLabels[i] = lv_label_create(btn);
-        lv_obj_set_style_text_font(_menuLabels[i], &lv_font_ratdeck_14, 0);
+        lv_obj_set_style_text_font(_menuLabels[i], &lv_font_rsdeck_14, 0);
         lv_obj_set_style_text_color(_menuLabels[i], lv_color_hex(Theme::PRIMARY), 0);
         lv_label_set_text(_menuLabels[i], menuText[i]);
         lv_obj_center(_menuLabels[i]);
@@ -185,13 +185,13 @@ void LvNodesScreen::createUI(lv_obj_t* parent) {
     lv_obj_add_flag(_nicknameBox, LV_OBJ_FLAG_HIDDEN);
 
     lv_obj_t* nickTitle = lv_label_create(_nicknameBox);
-    lv_obj_set_style_text_font(nickTitle, &lv_font_ratdeck_10, 0);
+    lv_obj_set_style_text_font(nickTitle, &lv_font_rsdeck_10, 0);
     lv_obj_set_style_text_color(nickTitle, lv_color_hex(Theme::TEXT_SECONDARY), 0);
     lv_label_set_text(nickTitle, "Contact name");
     lv_obj_set_pos(nickTitle, 0, 0);
 
     _nicknameLbl = lv_label_create(_nicknameBox);
-    lv_obj_set_style_text_font(_nicknameLbl, &lv_font_ratdeck_14, 0);
+    lv_obj_set_style_text_font(_nicknameLbl, &lv_font_rsdeck_14, 0);
     lv_obj_set_style_text_color(_nicknameLbl, lv_color_hex(Theme::PRIMARY), 0);
     lv_label_set_long_mode(_nicknameLbl, LV_LABEL_LONG_CLIP);
     lv_obj_set_width(_nicknameLbl, 232);
@@ -199,7 +199,7 @@ void LvNodesScreen::createUI(lv_obj_t* parent) {
     lv_obj_set_pos(_nicknameLbl, 0, 22);
 
     _nicknameHint = lv_label_create(_nicknameBox);
-    lv_obj_set_style_text_font(_nicknameHint, &lv_font_ratdeck_10, 0);
+    lv_obj_set_style_text_font(_nicknameHint, &lv_font_rsdeck_10, 0);
     lv_obj_set_style_text_color(_nicknameHint, lv_color_hex(Theme::TEXT_MUTED), 0);
     lv_label_set_text(_nicknameHint, "Enter saves / Esc keeps");
     lv_obj_set_pos(_nicknameHint, 0, 52);
@@ -291,7 +291,7 @@ void LvNodesScreen::rebuildList() {
         lv_obj_set_style_pad_all(hdr, 0, 0);
         lv_obj_clear_flag(hdr, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
         lv_obj_t* lbl = lv_label_create(hdr);
-        lv_obj_set_style_text_font(lbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(lbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(lbl, lv_color_hex(Theme::ACCENT), 0);
         lv_label_set_text(lbl, text);
         lv_obj_set_pos(lbl, 8, 5);
@@ -327,7 +327,7 @@ void LvNodesScreen::rebuildList() {
         }, LV_EVENT_FOCUSED, nullptr);
 
         lv_obj_t* nameLbl = lv_label_create(row);
-        lv_obj_set_style_text_font(nameLbl, &lv_font_ratdeck_12, 0);
+        lv_obj_set_style_text_font(nameLbl, &lv_font_rsdeck_12, 0);
         lv_obj_set_style_text_color(nameLbl, lv_color_hex(
             node.saved ? Theme::ACCENT : Theme::PRIMARY), 0);
         lv_label_set_long_mode(nameLbl, LV_LABEL_LONG_CLIP);
@@ -337,7 +337,7 @@ void LvNodesScreen::rebuildList() {
         lv_obj_set_pos(nameLbl, 8, 3);
 
         lv_obj_t* infoLbl = lv_label_create(row);
-        lv_obj_set_style_text_font(infoLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(infoLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(infoLbl, lv_color_hex(Theme::TEXT_SECONDARY), 0);
         lv_obj_set_style_text_align(infoLbl, LV_TEXT_ALIGN_RIGHT, 0);
         lv_label_set_long_mode(infoLbl, LV_LABEL_LONG_CLIP);
@@ -347,7 +347,7 @@ void LvNodesScreen::rebuildList() {
         lv_obj_set_pos(infoLbl, Theme::CONTENT_W - 124, 5);
 
         lv_obj_t* idLbl = lv_label_create(row);
-        lv_obj_set_style_text_font(idLbl, &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(idLbl, &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_color(idLbl, lv_color_hex(Theme::TEXT_MUTED), 0);
         lv_label_set_long_mode(idLbl, LV_LABEL_LONG_CLIP);
         lv_obj_set_width(idLbl, Theme::CONTENT_W - 16);

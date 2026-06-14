@@ -1,4 +1,4 @@
-name: PlatformIO Build
+name: Firmware Build
 
 on:
   push:
@@ -7,8 +7,11 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  ARDUINO_CLI_VERSION: 1.4.1
+
 jobs:
-  build:
+  package:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -18,47 +21,30 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install PlatformIO
+      - name: Install Arduino CLI
+        run: |
+          mkdir -p "$RUNNER_TEMP/arduino-cli"
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh \
+            | BINDIR="$RUNNER_TEMP/arduino-cli" sh -s "$ARDUINO_CLI_VERSION"
+          echo "$RUNNER_TEMP/arduino-cli" >> "$GITHUB_PATH"
+
+      - name: Install Python tools
         run: pip install platformio esptool
 
-      - name: Build firmware
-        run: pio run -e ratdeck_915
+      - name: Prepare RNode Arduino dependencies
+        run: make -C vendor/rnode_firmware prep-esp32
 
-      - name: Merge single .bin for M5Burner
-        run: |
-          esptool.py --chip esp32s3 merge-bin \
-            --flash-mode qio --flash-size 16MB \
-            -o ratdeck-merged.bin \
-            0x0000 .pio/build/ratdeck_915/bootloader.bin \
-            0x8000 .pio/build/ratdeck_915/partitions.bin \
-            0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
-            0x10000 .pio/build/ratdeck_915/firmware.bin
+      - name: Build release package
+        run: make package
 
-      - name: Package firmware ZIP
-        run: |
-          mkdir -p ratdeck-firmware
-          cp .pio/build/ratdeck_915/bootloader.bin ratdeck-firmware/
-          cp .pio/build/ratdeck_915/partitions.bin ratdeck-firmware/
-          cp ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin ratdeck-firmware/
-          cp .pio/build/ratdeck_915/firmware.bin ratdeck-firmware/
-          cat > ratdeck-firmware/manifest.json << 'MANIFEST'
-          {
-            "chipFamily": "ESP32-S3",
-            "flashSize": "16MB",
-            "flashMode": "qio",
-            "flashFreq": "80m",
-            "parts": [
-              { "path": "bootloader.bin", "offset": "0x0000" },
-              { "path": "partitions.bin", "offset": "0x8000" },
-              { "path": "boot_app0.bin", "offset": "0xe000" },
-              { "path": "firmware.bin", "offset": "0x10000" }
-            ]
-          }
-          MANIFEST
-          cd ratdeck-firmware && zip -r ../ratdeck-firmware.zip . && cd ..
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: rsdeck-dist
+          path: dist/*
 
   release:
-    needs: build
+    needs: package
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -71,56 +57,43 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install PlatformIO
+      - name: Install Arduino CLI
+        run: |
+          mkdir -p "$RUNNER_TEMP/arduino-cli"
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh \
+            | BINDIR="$RUNNER_TEMP/arduino-cli" sh -s "$ARDUINO_CLI_VERSION"
+          echo "$RUNNER_TEMP/arduino-cli" >> "$GITHUB_PATH"
+
+      - name: Install Python tools
         run: pip install platformio esptool
 
-      - name: Build firmware
-        run: pio run -e ratdeck_915
+      - name: Prepare RNode Arduino dependencies
+        run: make -C vendor/rnode_firmware prep-esp32
 
-      - name: Merge single .bin for M5Burner
-        run: |
-          esptool.py --chip esp32s3 merge-bin \
-            --flash-mode qio --flash-size 16MB \
-            -o ratdeck-merged.bin \
-            0x0000 .pio/build/ratdeck_915/bootloader.bin \
-            0x8000 .pio/build/ratdeck_915/partitions.bin \
-            0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
-            0x10000 .pio/build/ratdeck_915/firmware.bin
-
-      - name: Package firmware ZIP
-        run: |
-          mkdir -p ratdeck-firmware
-          cp .pio/build/ratdeck_915/bootloader.bin ratdeck-firmware/
-          cp .pio/build/ratdeck_915/partitions.bin ratdeck-firmware/
-          cp ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin ratdeck-firmware/
-          cp .pio/build/ratdeck_915/firmware.bin ratdeck-firmware/
-          cat > ratdeck-firmware/manifest.json << 'MANIFEST'
-          {
-            "chipFamily": "ESP32-S3",
-            "flashSize": "16MB",
-            "flashMode": "qio",
-            "flashFreq": "80m",
-            "parts": [
-              { "path": "bootloader.bin", "offset": "0x0000" },
-              { "path": "partitions.bin", "offset": "0x8000" },
-              { "path": "boot_app0.bin", "offset": "0xe000" },
-              { "path": "firmware.bin", "offset": "0x10000" }
-            ]
-          }
-          MANIFEST
-          cd ratdeck-firmware && zip -r ../ratdeck-firmware.zip . && cd ..
+      - name: Build release package
+        run: make package
 
       - name: Create Release
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           release_args=(--generate-notes)
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then
             release_args+=(--prerelease)
           fi
 
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" ratdeck-firmware.zip ratdeck-merged.bin --clobber
+          artifacts=(
+            dist/rsdeck-full.zip
+            dist/rsdeck-standalone.zip
+            dist/rsdeck-rnode.zip
+            dist/rsdeck-standalone-m5launcher.bin
+            dist/rsdeck-rnode-m5launcher.bin
+          )
+
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${artifacts[@]}" --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create "$GITHUB_REF_NAME" ratdeck-firmware.zip ratdeck-merged.bin "${release_args[@]}"
+            gh release create "$GITHUB_REF_NAME" "${artifacts[@]}" "${release_args[@]}" --repo "$GITHUB_REPOSITORY"
           fi

@@ -49,7 +49,7 @@ void LvTabBar::create(lv_obj_t* parent) {
         _labels[i] = lv_label_create(_cells[i]);
         lv_obj_set_size(_labels[i], Theme::TAB_W - 4, 14);
         lv_label_set_long_mode(_labels[i], LV_LABEL_LONG_CLIP);
-        lv_obj_set_style_text_font(_labels[i], &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(_labels[i], &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_align(_labels[i], LV_TEXT_ALIGN_CENTER, 0);
         lv_label_set_text(_labels[i], TAB_NAMES[i]);
         lv_obj_align(_labels[i], LV_ALIGN_CENTER, 0, 2);
@@ -63,7 +63,7 @@ void LvTabBar::create(lv_obj_t* parent) {
 
         _badgeLabels[i] = lv_label_create(_badges[i]);
         lv_label_set_long_mode(_badgeLabels[i], LV_LABEL_LONG_CLIP);
-        lv_obj_set_style_text_font(_badgeLabels[i], &lv_font_ratdeck_10, 0);
+        lv_obj_set_style_text_font(_badgeLabels[i], &lv_font_rsdeck_10, 0);
         lv_obj_set_style_text_align(_badgeLabels[i], LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_center(_badgeLabels[i]);
     }

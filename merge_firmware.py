@@ -15,12 +15,12 @@ def merge_bin(source, target, env):
     framework_dir = env.PioPlatform().get_package_dir("framework-arduinoespressif32")
     boot_app0 = os.path.join(framework_dir, "tools", "partitions", "boot_app0.bin")
 
-    output = os.path.join(project_dir, "ratdeck-merged.bin")
+    output = os.path.join(project_dir, "rsdeck-merged.bin")
 
     python = env.subst("$PYTHONEXE")
     env.Execute(
         f"{shlex.quote(python)} -m esptool --chip esp32s3 merge-bin "
-        "--flash-mode qio --flash-size 16MB "
+        "--flash-mode dio --flash-size 16MB "
         f"-o {shlex.quote(output)} "
         f"0x0000 {shlex.quote(os.path.join(build_dir, 'bootloader.bin'))} "
         f"0x8000 {shlex.quote(os.path.join(build_dir, 'partitions.bin'))} "

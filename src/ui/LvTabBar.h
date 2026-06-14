@@ -29,8 +29,10 @@ public:
 
     lv_obj_t* obj() { return _bar; }
 
-private:
+    // Re-apply palette-dependent label colors after a theme switch
     void refreshTabs();
+
+private:
     void refreshTab(int idx);
 
     lv_obj_t* _bar = nullptr;

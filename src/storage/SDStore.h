@@ -25,8 +25,8 @@ public:
     uint64_t totalBytes() const;
     uint64_t usedBytes() const;
 
-    bool formatForRatdeck();
-    bool wipeRatdeck();
+    bool formatForRsDeck();
+    bool wipeRsDeck();
     bool hasExistingData();
 
 private:

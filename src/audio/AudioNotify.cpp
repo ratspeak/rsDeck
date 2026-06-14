@@ -168,7 +168,7 @@ void AudioNotify::playError() {
 void AudioNotify::playBoot() {
     if (!_enabled || !_i2sReady) return;
 
-    // === RATDECK BOOT SEQUENCE ===
+    // === RSDECK BOOT SEQUENCE ===
     // Sci-fi computer startup: sweep -> digital arpeggio -> confirmation
     // Total ~550ms
 

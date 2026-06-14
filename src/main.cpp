@@ -1,5 +1,5 @@
 // =============================================================================
-// Ratdeck — Main Entry Point
+// rsDeck — Main Entry Point
 // LilyGo T-Deck Plus: LovyanGFX Direct UI + microReticulum + LXMF Messaging
 // =============================================================================
 
@@ -11,6 +11,7 @@
 
 #include "config/BoardConfig.h"
 #include "config/Config.h"
+#include "platform/RsDeckModeSwitch.h"
 #include "hal/Display.h"
 #include "hal/TouchInput.h"
 #include "hal/Trackball.h"
@@ -23,6 +24,7 @@
 #include "input/InputManager.h"
 #include "input/HotkeyManager.h"
 #include "ui/UIManager.h"
+#include "ui/Theme.h"
 #include "ui/LvTabBar.h"
 #include "ui/LvInput.h"
 #include "ui/screens/LvBootScreen.h"
@@ -409,7 +411,7 @@ void onHotkeyAutoIface() {
 }
 void onHotkeyDiag() {
     Serial.println("=== DIAGNOSTIC DUMP ===");
-    Serial.printf("Device: Ratdeck T-Deck Plus\n");
+    Serial.printf("Device: rsDeck T-Deck Plus\n");
     Serial.printf("Identity: %s\n", rns.identityHash().c_str());
     Serial.printf("Transport: %s\n", rns.isTransportActive() ? "ACTIVE" : "OFFLINE");
     Serial.printf("Paths: %d  Links: %d\n", (int)rns.pathCount(), (int)rns.linkCount());
@@ -423,6 +425,17 @@ void onHotkeyDiag() {
                       radio.getTxPower());
         Serial.printf("Regulator: %s\n", LORA_USE_DCDC_REGULATOR ? "DC-DC" : "LDO");
         Serial.printf("Preamble: %ld symbols\n", radio.getPreambleLength());
+        Serial.printf("Bitrate: %lu bps  LDRO: %s  frame255: %.0f ms\n",
+                      (unsigned long)radio.getBitrate(),
+                      radio.lowDataRateEnabled() ? "ON" : "off",
+                      radio.getAirtime(MAX_PACKET_SIZE));
+        if (auto* loraIf = rns.loraInterface()) {
+            Serial.printf("LoRaIF: bitrate=%lu bps split_timeout=%lu ms frame=%.0f ms airtime=%.2f%%\n",
+                          (unsigned long)loraIf->bitrate(),
+                          loraIf->splitRxTimeoutMs(),
+                          loraIf->singleFrameAirtimeMs(),
+                          loraIf->airtimeUtilization() * 100.0f);
+        }
         Serial.printf("IQ invert: %s\n", radio.getInvertIQ() ? "ON" : "off");
         Serial.printf("SyncWord regs: 0x%02X%02X\n",
             radio.readRegister(REG_SYNC_WORD_MSB_6X),
@@ -515,7 +528,7 @@ void onHotkeyRssiMonitor() {
 void onHotkeyRadioTest() {
     Serial.println("[TEST] Sending raw test packet...");
     uint8_t header = 0xA0;
-    const char* testPayload = "RATDECK_TEST_1234567890";
+    const char* testPayload = "RSDECK_TEST_1234567890";
     radio.beginPacket();
     radio.write(header);
     radio.write((const uint8_t*)testPayload, strlen(testPayload));
@@ -657,7 +670,7 @@ static bool selectDiagnosticPeer(const char* explicitArg, RNS::Bytes& destHash, 
 }
 
 static std::string makeDiagnosticLxmfPayload(size_t length) {
-    static constexpr char kPrefix[] = "RATDECK-LXMF-TEST:";
+    static constexpr char kPrefix[] = "RSDECK-LXMF-TEST:";
     static constexpr char kPattern[] =
         "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
@@ -694,10 +707,196 @@ static bool sendDiagnosticLxmf(size_t length, const char* explicitDest) {
     return ok;
 }
 
+static constexpr uint8_t LITE_TRANSPORT_ID[16] = {
+    'r', 's', 'l', 'i', 't', 'e', '-', 'h',
+    'e', 'l', 't', 'e', 'c', '-', 'v', '3'
+};
+static constexpr size_t RNODE_DIAG_SINGLE_MTU = 254;
+static RNS::Bytes diagnosticLiteLinkId;
+
+static bool sendDiagnosticRawReticulum(const RNS::Bytes& raw, const char* label) {
+    if (!radioOnline || !radio.isRadioOnline()) {
+        Serial.println("[SERIAL] lite diag failed: radio offline");
+        return false;
+    }
+    if (raw.empty() || raw.size() > RNODE_DIAG_SINGLE_MTU) {
+        Serial.printf("[SERIAL] lite diag %s rejected: raw len=%u (allowed 1..%u)\n",
+                      label ? label : "packet",
+                      (unsigned)raw.size(),
+                      (unsigned)RNODE_DIAG_SINGLE_MTU);
+        return false;
+    }
+
+    uint8_t rnodeHeader = (uint8_t)(random(256)) & 0xF0;
+    radio.beginPacket();
+    radio.write(rnodeHeader);
+    radio.write(raw.data(), raw.size());
+    bool ok = radio.endPacket();
+    radio.receive();
+    Serial.printf("[SERIAL] lite diag %s TX %s raw=%u air=%u rnode=0x%02X\n",
+                  label ? label : "packet",
+                  ok ? "OK" : "FAILED",
+                  (unsigned)raw.size(),
+                  (unsigned)(raw.size() + 1),
+                  rnodeHeader);
+    return ok;
+}
+
+static RNS::Bytes diagnosticHeader2LinkId(const RNS::Bytes& raw) {
+    RNS::Bytes material;
+    if (raw.empty()) return material;
+
+    material.append((uint8_t)(raw[0] & 0x0F));
+    if (raw.size() > 18) {
+        size_t headerEnd = raw.size() < 35 ? raw.size() : 35;
+        material.append(raw.data() + 18, headerEnd - 18);
+    }
+    if (raw.size() > 35) {
+        size_t payloadLen = raw.size() - 35;
+        if (payloadLen > 64) payloadLen = 64;
+        material.append(raw.data() + 35, payloadLen);
+    }
+
+    return RNS::Identity::full_hash(material).left(16);
+}
+
+static bool buildDiagnosticHeader2(uint8_t packetType, uint8_t context, const RNS::Bytes& destHash,
+                                   const uint8_t* payload, size_t payloadLen, RNS::Bytes& out) {
+    if (destHash.size() != 16) return false;
+    out.clear();
+    out.append((uint8_t)(0x40 | 0x10 | (packetType & 0x03)));  // Header2 + Transport + Single
+    out.append((uint8_t)0x00);                                  // hops
+    out.append(LITE_TRANSPORT_ID, sizeof(LITE_TRANSPORT_ID));
+    out.append(destHash.data(), destHash.size());
+    out.append(context);
+    out.append(payload, payloadLen);
+    return out.size() <= RNODE_DIAG_SINGLE_MTU;
+}
+
+static bool buildDiagnosticLinkPacket(uint8_t packetType, uint8_t context, const uint8_t* payload,
+                                      size_t payloadLen, RNS::Bytes& out) {
+    if (diagnosticLiteLinkId.size() != 16) {
+        Serial.println("[SERIAL] lite link diag failed: send J [dest_hash] first");
+        return false;
+    }
+    out.clear();
+    out.append((uint8_t)(0x0C | (packetType & 0x03)));  // Header1 + Broadcast + Link
+    out.append((uint8_t)0x00);                          // hops
+    out.append(diagnosticLiteLinkId.data(), diagnosticLiteLinkId.size());
+    out.append(context);
+    out.append(payload, payloadLen);
+    return out.size() <= RNODE_DIAG_SINGLE_MTU;
+}
+
+static bool parseSerialContextByte(const char* p, uint8_t defaultContext, uint8_t& context) {
+    p = skipSerialSeparators(p);
+    if (!p || *p == '\0') {
+        context = defaultContext;
+        return true;
+    }
+
+    char* end = nullptr;
+    long parsed = std::strtol(p, &end, 16);
+    if (end == p || parsed < 0 || parsed > 0xFF) {
+        Serial.println("[SERIAL] invalid context; expected one hex byte, for example K0E or YFD");
+        return false;
+    }
+    context = (uint8_t)parsed;
+    return true;
+}
+
+static void fillDiagnosticPayload(uint8_t* payload, size_t len, uint8_t seed) {
+    for (size_t i = 0; i < len; i++) {
+        payload[i] = (uint8_t)(seed + i);
+    }
+}
+
+static bool sendDiagnosticLiteHeader2Data(size_t length, const char* explicitDest) {
+    static constexpr size_t kMaxDiagnosticTransportPayload = 160;
+    if (length == 0 || length > kMaxDiagnosticTransportPayload) {
+        Serial.printf("[SERIAL] usage: H<len> [dest_hash], length 1..%u\n",
+                      (unsigned)kMaxDiagnosticTransportPayload);
+        return false;
+    }
+
+    RNS::Bytes destHash;
+    std::string peerLabel;
+    if (!selectDiagnosticPeer(explicitDest, destHash, peerLabel)) return false;
+
+    uint8_t payload[kMaxDiagnosticTransportPayload];
+    fillDiagnosticPayload(payload, length, 0x48);
+
+    RNS::Bytes raw;
+    if (!buildDiagnosticHeader2(0x00, 0x00, destHash, payload, length, raw)) {
+        Serial.println("[SERIAL] lite Header2 data build failed");
+        return false;
+    }
+
+    Serial.printf("[SERIAL] lite Header2 DATA to Heltec transport, dest=%s payload=%u\n",
+                  peerLabel.c_str(), (unsigned)length);
+    return sendDiagnosticRawReticulum(raw, "H2-DATA");
+}
+
+static bool sendDiagnosticLiteLinkRequest(const char* explicitDest) {
+    RNS::Bytes destHash;
+    std::string peerLabel;
+    if (!selectDiagnosticPeer(explicitDest, destHash, peerLabel)) return false;
+
+    uint8_t payload[64];
+    fillDiagnosticPayload(payload, sizeof(payload), 0xA5);
+
+    RNS::Bytes raw;
+    if (!buildDiagnosticHeader2(0x02, 0x00, destHash, payload, sizeof(payload), raw)) {
+        Serial.println("[SERIAL] lite link request build failed");
+        return false;
+    }
+
+    diagnosticLiteLinkId = diagnosticHeader2LinkId(raw);
+    Serial.printf("[SERIAL] lite LINKREQUEST to Heltec transport, dest=%s link=%s\n",
+                  peerLabel.c_str(), diagnosticLiteLinkId.toHex().c_str());
+    return sendDiagnosticRawReticulum(raw, "LINKREQUEST");
+}
+
+static bool sendDiagnosticLiteLinkData(const char* contextArg) {
+    uint8_t context = 0x0E;  // Channel
+    if (!parseSerialContextByte(contextArg, context, context)) return false;
+
+    uint8_t payload[24];
+    fillDiagnosticPayload(payload, sizeof(payload), context);
+
+    RNS::Bytes raw;
+    if (!buildDiagnosticLinkPacket(0x00, context, payload, sizeof(payload), raw)) {
+        Serial.println("[SERIAL] lite link data build failed");
+        return false;
+    }
+
+    Serial.printf("[SERIAL] lite LINK DATA context=0x%02X link=%s\n",
+                  context, diagnosticLiteLinkId.toHex().c_str());
+    return sendDiagnosticRawReticulum(raw, "LINK-DATA");
+}
+
+static bool sendDiagnosticLiteLinkProof(const char* contextArg) {
+    uint8_t context = 0xFD;  // LinkProof
+    if (!parseSerialContextByte(contextArg, context, context)) return false;
+
+    uint8_t payload[64];
+    fillDiagnosticPayload(payload, sizeof(payload), 0x7A);
+
+    RNS::Bytes raw;
+    if (!buildDiagnosticLinkPacket(0x03, context, payload, sizeof(payload), raw)) {
+        Serial.println("[SERIAL] lite link proof build failed");
+        return false;
+    }
+
+    Serial.printf("[SERIAL] lite LINK PROOF context=0x%02X link=%s\n",
+                  context, diagnosticLiteLinkId.toHex().c_str());
+    return sendDiagnosticRawReticulum(raw, "LINK-PROOF");
+}
+
 static void handleSerialLineCommand(const char* line) {
     if (!line || !*line) return;
 
-    switch (line[0]) {
+    switch ((char)std::toupper((unsigned char)line[0])) {
         case 'F': {
             long value = 0;
             if (!parseSerialLong(line + 1, value) || value < 0) {
@@ -726,6 +925,28 @@ static void handleSerialLineCommand(const char* line) {
             sendDiagnosticLxmf((size_t)length, rest);
             break;
         }
+        case 'H': {
+            long length = 0;
+            const char* rest = nullptr;
+            if (!parseSerialLong(line + 1, length, &rest) || length <= 0) {
+                Serial.println("[SERIAL] usage: H<len> [dest_hash], for example H32 2db8...");
+                return;
+            }
+            sendDiagnosticLiteHeader2Data((size_t)length, rest);
+            break;
+        }
+        case 'J': {
+            sendDiagnosticLiteLinkRequest(line + 1);
+            break;
+        }
+        case 'K': {
+            sendDiagnosticLiteLinkData(line + 1);
+            break;
+        }
+        case 'Y': {
+            sendDiagnosticLiteLinkProof(line + 1);
+            break;
+        }
         default:
             Serial.printf("[SERIAL] unknown line command '%c'\n", line[0]);
             break;
@@ -735,6 +956,7 @@ static void handleSerialLineCommand(const char* line) {
 static void printSerialHelp() {
     Serial.println("[SERIAL] commands: ? help | a announce | t raw-test | d diag | r rssi | i irq | p tx-power-cycle | m min-power | q iq | +/- freq");
     Serial.println("[SERIAL] line commands: F<hz> exact-frequency | P<dBm> exact-tx-power | L<len> [dest_hash] LXMF test");
+    Serial.println("[SERIAL] lite relay diag: H<len> [dest] Header2 data | J [dest] linkreq | K<ctx_hex> link-data | Y<ctx_hex> link-proof");
 }
 
 static void handleSerialCommands() {
@@ -763,7 +985,7 @@ static void handleSerialCommands() {
         }
 
         if (c == '\r' || c == '\n' || c == ' ' || c == '\t') continue;
-        if (c == 'F' || c == 'P' || c == 'L') {
+        if (c == 'F' || c == 'P' || c == 'L' || c == 'H' || c == 'J' || c == 'K' || c == 'Y') {
             lineActive = true;
             lineLen = 0;
             line[lineLen++] = c;
@@ -844,7 +1066,7 @@ void setup() {
     delay(100);
     Serial.println();
     Serial.println("=================================");
-    Serial.printf("  Ratdeck v%s\n", RATDECK_VERSION_STRING);
+    Serial.printf("  rsDeck v%s\n", RSDECK_VERSION_STRING);
     Serial.println("  LilyGo T-Deck Plus");
     Serial.println("=================================");
 
@@ -864,6 +1086,12 @@ void setup() {
     Serial.printf("[BOOT] Reset: %s (%d)\n", reasonStr, (int)reason);
     Serial.printf("[BOOT] Heap: %lu  PSRAM: %lu\n",
                   (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getPsramSize());
+
+    // Dual-boot layout: re-arm the launcher so the next reset shows the chooser.
+    auto launcherBoot = rs_deck::returnToLauncherNextBoot();
+    if (!launcherBoot.ok) {
+        Serial.printf("[BOOT] Launcher return unavailable: %s\n", launcherBoot.message);
+    }
     if (!psramFound() || heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) < 1024 * 1024) {
         Serial.printf("[BOOT] FATAL: PSRAM unavailable or too fragmented (largest=%lu)\n",
                       (unsigned long)heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
@@ -890,6 +1118,8 @@ void setup() {
     } else {
         Serial.println("[BOOT] Early flash mount failed; using default radio config");
     }
+    // Select palette before any LVGL styles are built
+    Theme::setScheme(userConfig.settings().themeLight ? Theme::Scheme::LIGHT : Theme::Scheme::DARK);
 
     // Step 4: Radio + SD init BEFORE display
     // Radio and SD must init while SPIClass exclusively owns SPI2_HOST.
@@ -910,7 +1140,7 @@ void setup() {
     delay(10);
     if (sdStore.begin(&sharedSPI, SD_CS)) {
         sdHadExistingData = sdStore.hasExistingData();
-        sdStore.formatForRatdeck();
+        sdStore.formatForRsDeck();
         Serial.println("[SD] Card ready");
     } else {
         Serial.println("[SD] Not detected");
@@ -1034,6 +1264,11 @@ void setup() {
 
     lvBootScreen.setProgress(0.64f, "Loading config...");
     userConfig.load(sdStore, flash);
+    // SD config may override the early flash-only load; re-sync palette
+    {
+        Theme::Scheme want = userConfig.settings().themeLight ? Theme::Scheme::LIGHT : Theme::Scheme::DARK;
+        if (want != Theme::scheme()) { Theme::setScheme(want); ui.applyTheme(); }
+    }
     inputManager.setTrackballSpeed(userConfig.settings().trackballSpeed);
     applyRadioSettingsToHardware(userConfig.settings(), "BOOT PRE-RNS");
 
@@ -1496,7 +1731,7 @@ void setup() {
         if (wipe) {
             Serial.println("[BOOT] User chose to wipe old data");
             lvDataCleanScreen.showStatus("Clearing old data...");
-            sdStore.wipeRatdeck();
+            sdStore.wipeRsDeck();
             if (announceManager) announceManager->clearAll();
             Serial.println("[BOOT] Old data cleared");
             lvDataCleanScreen.showStatus("Done! Rebooting...");
@@ -1624,7 +1859,7 @@ void setup() {
         keyboard.backlightOn();
     }
 
-    Serial.println("[BOOT] Ratdeck ready");
+    Serial.println("[BOOT] rsDeck ready");
     Serial.printf("[BOOT] Summary: radio=%s flash=%s sd=%s\n",
                   radioOnline ? "ONLINE" : "OFFLINE",
                   flash.isReady() ? "OK" : "FAIL",

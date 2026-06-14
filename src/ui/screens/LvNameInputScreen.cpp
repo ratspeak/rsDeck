@@ -46,7 +46,7 @@ lv_obj_t* makeActionButton(lv_obj_t* parent, const char* text, lv_coord_t y) {
     lv_obj_set_style_pad_all(btn, 0, 0);
 
     lv_obj_t* lbl = lv_label_create(btn);
-    lv_obj_set_style_text_font(lbl, &lv_font_ratdeck_12, 0);
+    lv_obj_set_style_text_font(lbl, &lv_font_rsdeck_12, 0);
     lv_obj_set_style_text_color(lbl, lv_color_hex(Theme::ACCENT), 0);
     lv_label_set_long_mode(lbl, LV_LABEL_LONG_DOT);
     lv_obj_set_width(lbl, 150);
@@ -66,7 +66,7 @@ void LvNameInputScreen::createUI(lv_obj_t* parent) {
     lv_obj_set_style_bg_color(parent, lv_color_hex(Theme::BG), 0);
     lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
 
-    lv_obj_t* eyebrow = makeLabel(parent, "FIRST BOOT", &lv_font_ratdeck_10,
+    lv_obj_t* eyebrow = makeLabel(parent, "FIRST BOOT", &lv_font_rsdeck_10,
                                   Theme::TEXT_SECONDARY, 220, LV_TEXT_ALIGN_CENTER,
                                   LV_LABEL_LONG_DOT);
     lv_obj_align(eyebrow, LV_ALIGN_TOP_MID, 0, 13);
@@ -79,7 +79,7 @@ void LvNameInputScreen::createUI(lv_obj_t* parent) {
 
     lv_obj_t* prompt = makeLabel(parent,
         "Choose the name other operators see on announces.",
-        &lv_font_ratdeck_12, Theme::TEXT_PRIMARY, 250, LV_TEXT_ALIGN_CENTER);
+        &lv_font_rsdeck_12, Theme::TEXT_PRIMARY, 250, LV_TEXT_ALIGN_CENTER);
     lv_obj_align(prompt, LV_ALIGN_TOP_MID, 0, 70);
 
     _textarea = lv_textarea_create(parent);
@@ -90,13 +90,13 @@ void LvNameInputScreen::createUI(lv_obj_t* parent) {
     lv_textarea_set_placeholder_text(_textarea, "Optional");
     lv_obj_add_style(_textarea, LvTheme::styleTextarea(), 0);
     lv_obj_add_style(_textarea, LvTheme::styleTextareaFocused(), LV_STATE_FOCUSED);
-    lv_obj_set_style_text_font(_textarea, &lv_font_ratdeck_14, 0);
+    lv_obj_set_style_text_font(_textarea, &lv_font_rsdeck_14, 0);
     lv_group_add_obj(LvInput::group(), _textarea);
     lv_group_focus_obj(_textarea);
 
     lv_obj_t* note = makeLabel(parent,
-        "Leave blank to generate a Ratdeck name from this identity.",
-        &lv_font_ratdeck_12, Theme::TEXT_SECONDARY, 260, LV_TEXT_ALIGN_CENTER);
+        "Leave blank to generate a rsDeck name from this identity.",
+        &lv_font_rsdeck_12, Theme::TEXT_SECONDARY, 260, LV_TEXT_ALIGN_CENTER);
     lv_obj_align(note, LV_ALIGN_TOP_MID, 0, 154);
 
     _doneButton = makeActionButton(parent, "DONE", 184);
@@ -106,11 +106,11 @@ void LvNameInputScreen::createUI(lv_obj_t* parent) {
         self->submit(false);
     }, LV_EVENT_CLICKED, this);
 
-    lv_obj_t* ver = makeLabel(parent, "", &lv_font_ratdeck_10,
+    lv_obj_t* ver = makeLabel(parent, "", &lv_font_rsdeck_10,
                               Theme::TEXT_MUTED, 120, LV_TEXT_ALIGN_CENTER,
                               LV_LABEL_LONG_DOT);
     char verBuf[32];
-    snprintf(verBuf, sizeof(verBuf), "v%s", RATDECK_VERSION_STRING);
+    snprintf(verBuf, sizeof(verBuf), "v%s", RSDECK_VERSION_STRING);
     lv_label_set_text(ver, verBuf);
     lv_obj_align(ver, LV_ALIGN_BOTTOM_MID, 0, -10);
 }

@@ -60,7 +60,7 @@ lv_obj_t* makeLabel(lv_obj_t* parent, lv_coord_t x, lv_coord_t y, lv_coord_t w,
 }
 
 lv_obj_t* makeCaption(lv_obj_t* parent, const char* text) {
-    lv_obj_t* lbl = makeLabel(parent, 7, 4, 84, &lv_font_ratdeck_10,
+    lv_obj_t* lbl = makeLabel(parent, 7, 4, 84, &lv_font_rsdeck_10,
                               Theme::TEXT_MUTED, text);
     lv_obj_set_style_text_letter_space(lbl, 1, 0);
     return lbl;
@@ -71,7 +71,7 @@ lv_obj_t* makeChip(lv_obj_t* parent, lv_coord_t x, const char* title,
     lv_obj_t* chip = makePanel(parent, x, kChipY, kCellW, kChipH,
                                Theme::BG_ELEVATED, Theme::BORDER);
     makeCaption(chip, title);
-    *valueLabel = makeLabel(chip, 7, 18, 84, &lv_font_ratdeck_12,
+    *valueLabel = makeLabel(chip, 7, 18, 84, &lv_font_rsdeck_12,
                             Theme::TEXT_SECONDARY, "...");
     return chip;
 }
@@ -81,7 +81,7 @@ lv_obj_t* makeStat(lv_obj_t* parent, lv_coord_t x, const char* title,
     lv_obj_t* stat = makePanel(parent, x, kStatY, kCellW, kStatH,
                                Theme::BG_ELEVATED, Theme::BORDER);
     makeCaption(stat, title);
-    *valueLabel = makeLabel(stat, 7, 17, 84, &lv_font_ratdeck_14,
+    *valueLabel = makeLabel(stat, 7, 17, 84, &lv_font_rsdeck_14,
                             Theme::TEXT_PRIMARY, "0");
     return stat;
 }
@@ -172,23 +172,23 @@ void LvHomeScreen::createUI(lv_obj_t* parent) {
     _avatarSeed = "";
 
     _lblConsoleTitle = makeLabel(_identityPanel, 58, 6, 116,
-                                 &lv_font_ratdeck_10, Theme::ACCENT,
+                                 &lv_font_rsdeck_10, Theme::ACCENT,
                                  "IDENTITY:");
     lv_obj_set_style_text_letter_space(_lblConsoleTitle, 1, 0);
 
-    _lblStatus = makeLabel(_identityPanel, 184, 6, 114, &lv_font_ratdeck_10,
+    _lblStatus = makeLabel(_identityPanel, 184, 6, 114, &lv_font_rsdeck_10,
                            Theme::TEXT_SECONDARY, "OFFLINE",
                            LV_TEXT_ALIGN_RIGHT);
     lv_obj_set_style_text_letter_space(_lblStatus, 1, 0);
 
-    _lblName = makeLabel(_identityPanel, 58, 21, 240, &lv_font_ratdeck_14,
+    _lblName = makeLabel(_identityPanel, 58, 21, 240, &lv_font_rsdeck_14,
                          Theme::TEXT_PRIMARY, "...");
     lv_label_set_long_mode(_lblName, LV_LABEL_LONG_DOT);
 
-    _lblId = makeLabel(_identityPanel, 58, 41, 136, &lv_font_ratdeck_10,
+    _lblId = makeLabel(_identityPanel, 58, 41, 136, &lv_font_rsdeck_10,
                        Theme::TEXT_SECONDARY, "LXMF ----");
     _lblIdentity = makeLabel(_identityPanel, 198, 41, 100,
-                             &lv_font_ratdeck_10, Theme::TEXT_MUTED,
+                             &lv_font_rsdeck_10, Theme::TEXT_MUTED,
                              "ID ----", LV_TEXT_ALIGN_RIGHT);
 
     _chipLora = makeChip(parent, kPad, "LORA", &_lblLoraState);
@@ -226,10 +226,10 @@ void LvHomeScreen::createUI(lv_obj_t* parent) {
 
     lv_obj_t* footer = makePanel(parent, kPad, kFooterY, 198, kFooterH,
                                  Theme::BG_ELEVATED, Theme::BORDER);
-    _lblSummary = makeLabel(footer, 8, 6, 182, &lv_font_ratdeck_12,
+    _lblSummary = makeLabel(footer, 8, 6, 182, &lv_font_rsdeck_12,
                             Theme::TEXT_SECONDARY, "Waiting for transport");
     lv_label_set_long_mode(_lblSummary, LV_LABEL_LONG_DOT);
-    _lblLastAnnounce = makeLabel(footer, 8, 23, 182, &lv_font_ratdeck_10,
+    _lblLastAnnounce = makeLabel(footer, 8, 23, 182, &lv_font_rsdeck_10,
                                  Theme::TEXT_MUTED, "Announced: never");
     lv_label_set_long_mode(_lblLastAnnounce, LV_LABEL_LONG_CLIP);
 
@@ -246,7 +246,7 @@ void LvHomeScreen::createUI(lv_obj_t* parent) {
     lv_obj_set_style_pad_all(_btnAnnounce, 0, 0);
 
     _lblAnnounceAction = lv_label_create(_btnAnnounce);
-    lv_obj_set_style_text_font(_lblAnnounceAction, &lv_font_ratdeck_12, 0);
+    lv_obj_set_style_text_font(_lblAnnounceAction, &lv_font_rsdeck_12, 0);
     lv_obj_set_style_text_color(_lblAnnounceAction, lv_color_hex(Theme::ACCENT), 0);
     lv_label_set_text(_lblAnnounceAction, "ANNOUNCE");
     lv_obj_center(_lblAnnounceAction);
@@ -291,7 +291,7 @@ void LvHomeScreen::refreshUI() {
         String dh = _rns->destinationHashHex();
         displayName = "Ratspeak.org-" + dh.substring(0, 3);
     } else {
-        displayName = "Ratdeck";
+        displayName = "rsDeck";
     }
     lv_label_set_text(_lblName, displayName.c_str());
 

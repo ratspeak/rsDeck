@@ -56,6 +56,7 @@ struct UserSettings {
     uint16_t screenOffTimeout = 60;   // seconds
     uint8_t brightness = 100;  // Percentage 1-100
     bool denseFontMode = false;       // T-Deck Plus: adaptive font toggle
+    bool themeLight = false;          // false = dark (original palette)
 
     // Battery
     uint8_t batteryDisplay = 0;        // 0 = percent, 1 = bar
@@ -113,7 +114,8 @@ public:
 
 private:
     bool parseJson(const String& json);
-    String serializeToJson() const;
+    String serializeToJson();
+    void sanitizeSettings();
 
     UserSettings _settings;
 };

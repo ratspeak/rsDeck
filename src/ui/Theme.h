@@ -3,52 +3,62 @@
 #include <cstdint>
 
 // =============================================================================
-// Ratdeck design constants
-// Dark field-console palette tuned for the 320x240 LVGL surface.
+// rsDeck design constants
+// Field-console palette tuned for the 320x240 LVGL surface.
+// Colors are runtime-switchable (Dark = original palette, Light = derived);
+// the value tables live in Theme.cpp. Identifiers keep their original
+// spelling so call sites read the active palette transparently.
 // =============================================================================
 
 namespace Theme {
 
+enum class Scheme : uint8_t { DARK = 0, LIGHT = 1 };
+
+// Switch the active palette (boot default: DARK, the historical palette).
+void setScheme(Scheme s);
+Scheme scheme();
+
 // --- Backgrounds ---
-constexpr uint32_t BG             = 0x05080A;  // Screen base
-constexpr uint32_t BG_ELEVATED    = 0x0C1418;  // Buttons, inputs, list items
-constexpr uint32_t BG_SURFACE     = 0x121D23;  // Modals, dropdowns, shell bars
-constexpr uint32_t BG_HOVER       = 0x183033;  // Focus/hover background
+extern uint32_t BG;             // Screen base
+extern uint32_t BG_ELEVATED;    // Buttons, inputs, list items
+extern uint32_t BG_SURFACE;     // Modals, dropdowns, shell bars
+extern uint32_t BG_HOVER;       // Focus/hover background
 
 // --- Text hierarchy ---
-constexpr uint32_t TEXT_PRIMARY   = 0xE4F3F0;  // Primary copy
-constexpr uint32_t TEXT_SECONDARY = 0x91A8A5;  // Metadata and labels
-constexpr uint32_t TEXT_MUTED     = 0x526866;  // Disabled, placeholders
+extern uint32_t TEXT_PRIMARY;   // Primary copy
+extern uint32_t TEXT_SECONDARY; // Metadata and labels
+extern uint32_t TEXT_MUTED;     // Disabled, placeholders
 
 // --- Brand / interactive ---
-constexpr uint32_t PRIMARY        = 0x00E06D;  // Signal green
-constexpr uint32_t PRIMARY_MUTED  = 0x00A853;  // Pressed/active state
-constexpr uint32_t PRIMARY_SUBTLE = 0x06251A;  // Selection backgrounds
-constexpr uint32_t ACCENT         = 0x4FD7FF;  // Console cyan accent
+extern uint32_t PRIMARY;        // Signal green
+extern uint32_t PRIMARY_MUTED;  // Pressed/active state
+extern uint32_t PRIMARY_SUBTLE; // Selection backgrounds
+extern uint32_t ACCENT;         // Console cyan accent
 
 // --- Status ---
-constexpr uint32_t SUCCESS        = 0x31E981;  // Online, delivered, connected
-constexpr uint32_t WARNING_CLR    = 0xF0C04F;  // Queued, pending, caution
-constexpr uint32_t ERROR_CLR      = 0xFF5C6C;  // Failed, error, critical
+extern uint32_t SUCCESS;        // Online, delivered, connected
+extern uint32_t WARNING_CLR;    // Queued, pending, caution
+extern uint32_t ERROR_CLR;      // Failed, error, critical
+extern uint32_t ERROR_SUBTLE;   // Armed destructive backgrounds
 
 // --- Structural ---
-constexpr uint32_t BORDER         = 0x21383B;  // Subtle structural borders
-constexpr uint32_t BORDER_ACTIVE  = 0x00E06D;  // Focus borders
-constexpr uint32_t DIVIDER        = 0x102329;  // Hairline separators
+extern uint32_t BORDER;         // Subtle structural borders
+extern uint32_t BORDER_ACTIVE;  // Focus borders
+extern uint32_t DIVIDER;        // Hairline separators
 
 // --- Messages ---
-constexpr uint32_t MSG_OUT_BG     = 0x082719;  // Outgoing bubble
-constexpr uint32_t MSG_IN_BG      = 0x0B151C;  // Incoming bubble
+extern uint32_t MSG_OUT_BG;     // Outgoing bubble
+extern uint32_t MSG_IN_BG;      // Incoming bubble
 
 // --- Shell ---
-constexpr uint32_t STATUS_BG      = 0x071014;
-constexpr uint32_t STATUS_FLASH   = 0x12351F;
-constexpr uint32_t TAB_BG         = 0x081115;
-constexpr uint32_t TAB_ACTIVE_BG  = 0x0B241B;
-constexpr uint32_t TAB_ACTIVE     = 0x00E06D;
-constexpr uint32_t TAB_INACTIVE   = 0x91A8A5;
-constexpr uint32_t BADGE_BG       = 0xFF5C6C;
-constexpr uint32_t TOAST_BG       = 0x00E06D;
+extern uint32_t STATUS_BG;
+extern uint32_t STATUS_FLASH;
+extern uint32_t TAB_BG;
+extern uint32_t TAB_ACTIVE_BG;
+extern uint32_t TAB_ACTIVE;
+extern uint32_t TAB_INACTIVE;
+extern uint32_t BADGE_BG;
+extern uint32_t TOAST_BG;
 
 
 // --- Layout Metrics ---

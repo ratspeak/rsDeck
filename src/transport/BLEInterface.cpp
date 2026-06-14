@@ -21,7 +21,7 @@ BLEInterface::~BLEInterface() {
 
 bool BLEInterface::start() {
     _framesMutex = xSemaphoreCreateMutex();
-    NimBLEDevice::init("Ratdeck");
+    NimBLEDevice::init("rsDeck");
     NimBLEDevice::setMTU(512);
 
     _pServer = NimBLEDevice::createServer();
@@ -29,13 +29,13 @@ bool BLEInterface::start() {
 
     _pService = _pServer->createService(SERVICE_UUID);
 
-    // TX: Ratdeck -> remote (NOTIFY)
+    // TX: rsDeck -> remote (NOTIFY)
     _pTxChar = _pService->createCharacteristic(
         TX_CHAR_UUID,
         NIMBLE_PROPERTY::NOTIFY
     );
 
-    // RX: remote -> Ratdeck (WRITE)
+    // RX: remote -> rsDeck (WRITE)
     _pRxChar = _pService->createCharacteristic(
         RX_CHAR_UUID,
         NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR
@@ -47,7 +47,7 @@ bool BLEInterface::start() {
 
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     pAdv->addServiceUUID(SERVICE_UUID);
-    pAdv->setName("Ratdeck");
+    pAdv->setName("rsDeck");
     pAdv->start();
 
     _active = true;

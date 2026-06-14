@@ -60,5 +60,6 @@ private:
     static constexpr uint8_t DIM_PWM = 40;  // ~15% PWM when dimmed
     bool _kbAutoOn = false;
     bool _kbAutoOff = false;
+    bool _kbLitBeforeOff = false;
     bool _justWokeFromOff = false;
 };

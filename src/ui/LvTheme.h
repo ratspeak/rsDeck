@@ -2,10 +2,13 @@
 
 #include <lvgl.h>
 
-// Ratdeck LVGL theme: compact field-console styles for LVGL 8.3.
+// rsDeck LVGL theme: compact field-console styles for LVGL 8.3.
 namespace LvTheme {
 
 void init(lv_disp_t* disp);
+
+// Re-apply palette colors to all shared styles after a Theme scheme change.
+void refresh();
 
 // Style accessors - existing (16)
 lv_style_t* styleScreen();

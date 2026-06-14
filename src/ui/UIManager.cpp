@@ -1,6 +1,7 @@
 #include "UIManager.h"
 #include "Theme.h"
 #include "LvTheme.h"
+#include "LvInput.h"
 
 // --- LvScreen base ---
 
@@ -88,6 +89,15 @@ void UIManager::update() {
 
 void UIManager::forceRedraw() {
     lv_obj_invalidate(lv_scr_act());
+}
+
+void UIManager::applyTheme() {
+    LvTheme::refresh();
+    if (_lvContent) lv_obj_set_style_bg_color(_lvContent, lv_color_hex(Theme::BG), 0);
+    _lvStatusBar.applyTheme();
+    _lvTabBar.refreshTabs();
+    LvInput::applyTheme();
+    forceRedraw();
 }
 
 bool UIManager::handleKey(const KeyEvent& event) {

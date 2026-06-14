@@ -134,7 +134,9 @@ void Power::setState(State newState) {
             } else {
                 display.setBrightness(percentToPWM(_brightnessPct));
             }
-            if (_kbAutoOn) {
+            // On wake, relight only what screen-off forced dark (or per auto-on) —
+            // never force-enable for users who keep the kb light off.
+            if (_kbAutoOn || (oldState == SCREEN_OFF && _kbLitBeforeOff)) {
                 keyboard.backlightOn();
             }
             break;
@@ -148,9 +150,9 @@ void Power::setState(State newState) {
             // LovyanGFX sleep() sets brightness to 0 internally — no
             // need to call setBrightness(0) beforehand.
             display.sleep();
-            if (_kbAutoOff) {
-                keyboard.backlightOff();
-            }
+            // Kb backlight always follows screen-off — the timeout exists to save battery.
+            _kbLitBeforeOff = keyboard.backlightIsLit();
+            keyboard.backlightOff();
             break;
     }
 }

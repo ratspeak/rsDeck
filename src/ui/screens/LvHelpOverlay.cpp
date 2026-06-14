@@ -34,8 +34,8 @@ lv_obj_t* makeRow(lv_obj_t* parent) {
 
 void addHelpRow(lv_obj_t* parent, const char* keys, const char* action) {
     lv_obj_t* row = makeRow(parent);
-    makeLabel(row, keys, &lv_font_ratdeck_10, Theme::ACCENT, 72, LV_TEXT_ALIGN_LEFT);
-    makeLabel(row, action, &lv_font_ratdeck_10, Theme::TEXT_PRIMARY, 178, LV_TEXT_ALIGN_LEFT);
+    makeLabel(row, keys, &lv_font_rsdeck_10, Theme::ACCENT, 72, LV_TEXT_ALIGN_LEFT);
+    makeLabel(row, action, &lv_font_rsdeck_10, Theme::TEXT_PRIMARY, 178, LV_TEXT_ALIGN_LEFT);
 }
 
 }  // namespace
@@ -60,8 +60,8 @@ void LvHelpOverlay::create() {
 
     lv_obj_t* header = makeRow(_overlay);
     lv_obj_set_height(header, 16);
-    makeLabel(header, "HELP", &lv_font_ratdeck_12, Theme::ACCENT, 70, LV_TEXT_ALIGN_LEFT);
-    makeLabel(header, "Ratspeak.org", &lv_font_ratdeck_10,
+    makeLabel(header, "HELP", &lv_font_rsdeck_12, Theme::ACCENT, 70, LV_TEXT_ALIGN_LEFT);
+    makeLabel(header, "Ratspeak.org", &lv_font_rsdeck_10,
               Theme::TEXT_SECONDARY, 180, LV_TEXT_ALIGN_RIGHT);
 
     addHelpRow(_overlay, "Trackball", "Move selection");
@@ -75,7 +75,7 @@ void LvHelpOverlay::create() {
     addHelpRow(_overlay, "Ctrl+D/I/T/R", "Diagnostics tools");
 
     lv_obj_t* footer = makeLabel(_overlay, "Any key or tap closes",
-                                 &lv_font_ratdeck_10, Theme::TEXT_MUTED,
+                                 &lv_font_rsdeck_10, Theme::TEXT_MUTED,
                                  260, LV_TEXT_ALIGN_CENTER);
     lv_obj_set_style_pad_top(footer, 2, 0);
 

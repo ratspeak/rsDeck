@@ -8,6 +8,6 @@
 
 #include <lvgl.h>
 
-LV_FONT_DECLARE(lv_font_ratdeck_10)
-LV_FONT_DECLARE(lv_font_ratdeck_12)
-LV_FONT_DECLARE(lv_font_ratdeck_14)
+LV_FONT_DECLARE(lv_font_rsdeck_10)
+LV_FONT_DECLARE(lv_font_rsdeck_12)
+LV_FONT_DECLARE(lv_font_rsdeck_14)

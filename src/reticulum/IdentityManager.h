@@ -25,6 +25,9 @@ public:
     // Current active identity index (-1 if none)
     int activeIndex() const { return _activeIdx; }
 
+    // Import identity from SD card, returns index
+    int importIdentity(const String& displayName = "");
+
     // Create a new identity, returns index
     int createIdentity(const String& displayName = "");
 
@@ -53,6 +56,7 @@ private:
     void loadSlotMeta();
     void saveSlotMeta();
     String slotKeyPath(int slotNum) const;
+    String importIdentityPath() const;
 
     FlashStore* _flash = nullptr;
     SDStore* _sd = nullptr;

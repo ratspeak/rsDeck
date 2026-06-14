@@ -1,0 +1,9 @@
+.DS_Store
+*.hex
+*.pyc
+TODO
+Release/*.hex
+Release/*.zip
+Release/*.json
+Console/build
+build/*

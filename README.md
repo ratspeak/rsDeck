@@ -56,6 +56,12 @@ contacts.
 - Add contacts: select a discovered peer, then open or save the chat.
 - Send messages: open a chat, type, and press Enter.
 - Delivery color: yellow while sending, green after delivery confirmation.
+- Identity import: place one raw 64-byte Reticulum identity file under
+  `/ratdeck/identity/` on the SD card, then use Setup -> Import Identity.
+  Files named `import.identity` or `import.key` are preferred; otherwise rsDeck
+  accepts exactly one non-reserved `.identity` or `.key` file in that folder.
+  Ratspeak's encrypted `.rsi` backups are not imported on-device; from Ratspeak,
+  export a Reticulum Identity File for rsDeck import.
 
 ## Radio Presets
 

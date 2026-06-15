@@ -1869,7 +1869,9 @@ void loop() {
     handleSerialCommands();
 
     // 1. Input polling
+    bool screenWasOn = powerMgr.isScreenOn();
     inputManager.update();
+    bool wakeOnlyInput = !screenWasOn && inputManager.hadStrongActivity();
     if (inputManager.hadStrongActivity()) {
         powerMgr.activity();       // Keyboard/touch: wake from any state
     } else if (inputManager.hadActivity()) {
@@ -1884,7 +1886,7 @@ void loop() {
     }
 
     // 3. Key event dispatch
-    if (inputManager.hasKeyEvent()) {
+    if (inputManager.hasKeyEvent() && !wakeOnlyInput) {
         const KeyEvent& evt = inputManager.getKeyEvent();
 
         // Help overlay intercepts all keys when visible

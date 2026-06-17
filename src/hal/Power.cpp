@@ -1,6 +1,8 @@
 #include "Power.h"
 #include "hal/Display.h"
 #include "hal/Keyboard.h"
+#include "storage/SDStore.h"
+
 
 // Forward declarations — display & keyboard instances provided externally
 extern Display display;
@@ -10,32 +12,27 @@ extern Keyboard keyboard;
 // interpolated chart from https://www.researchgate.net/figure/Li-ion-battery-discharge-voltage-curve_fig5_363575973
 // the manual chart reading entries are read from chart, while the others are interpolated
 namespace {
-struct VoltPct { float v; int pct; };
-static const VoltPct LIPO_CURVE[] = {
-    {4.20f, 100}, // manual chart reading
-    {4.00f,  95},
-    {3.80f,  90}, // manual chart reading
-    {3.78f,  85},
-    {3.75f,  80}, // manual chart reading
-    {3.74f,  75},
-    {3.73f,  70},
-    {3.71f,  65},
-    {3.70f,  60}, // manual chart reading
-    {3.69f,  55},
-    {3.68f,  50},
-    {3.66f,  45},
-    {3.65f,  40}, // manual chart reading
-    {3.64f,  35},
-    {3.63f,  30},
-    {3.61f,  25},
-    {3.60f,  20}, // manual chart reading
-    {3.55f,  15},
-    {3.50f,  10}, // manual chart reading
-    {3.25f,   5}, // manual chart reading
-    {3.00f,   0}, // manual chart reading
-};
-constexpr int LIPO_CURVE_N = sizeof(LIPO_CURVE) / sizeof(LIPO_CURVE[0]);
+
+    struct VoltPoint { float v; int pct; };
+    static constexpr VoltPoint LIPO_CURVE[] = {
+        {3.90f, 100},
+        {3.80f, 90},
+        {3.72f, 80},
+        {3.65f, 70},
+        {3.59f, 60},
+        {3.53f, 50},
+        {3.48f, 40},
+        {3.44f, 30},
+        {3.40f, 20},
+        {3.36f, 15},
+        {3.30f, 10},
+        {3.15f, 5},
+        {3.00f, 0},
+    };
+    constexpr int LIPO_CURVE_N = sizeof(LIPO_CURVE) / sizeof(LIPO_CURVE[0]);
 }
+
+
 
 
 
@@ -68,10 +65,14 @@ float Power::batteryVoltage() const {
 int Power::batteryPercent() const {
     float v = batteryVoltage();
 
+    // Charging: voltage exceeds the discharge curve's top (3.9V = full).
+    // A discharging cell never gets there, so treat this as full.
+    if (isCharging())
+        return 100;
+
     // Compensate for load-induced voltage drop when running on battery.
     // Calculates an offset and adds it to real voltage for to be able using default LiPo lookup table
-    if (!isCharging())
-        v += (4.2f - _fullBatteryV);
+    v += (3.9f - _fullBatteryV);
 
     // Clamp to valid curve range.
     v = constrain(v, 3.0f, 4.2f);

@@ -260,13 +260,12 @@ void LvStatusBar::refreshBattery() {
         uint32_t indicatorCol;
         if (_isCharging) {
             indicatorCol = Theme::SUCCESS;
-        /*
-        // Future stuff, we can enable it, as soon as battery levels are working correctly
-        } else if (_battPct >= 0 && _battPct <= 15) {
+
+        } else if (_battPct >= 0 && _battPct <= 10) {
             indicatorCol = Theme::ERROR_CLR;
-        } else if (_battPct >= 0 && _battPct <= 30) {
+        } else if (_battPct >= 0 && _battPct <= 20) {
             indicatorCol = Theme::WARNING_CLR;
-        */
+
         } else {
             indicatorCol = 0xFFFFFF;
         }

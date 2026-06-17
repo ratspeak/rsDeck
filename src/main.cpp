@@ -1482,6 +1482,10 @@ void setup() {
 
     // Step 26: Battery init
     ui.lvStatusBar().setBatteryDisplay(userConfig.settings().batteryDisplay);
+    powerMgr.setBatteryModel(userConfig.settings().batteryModel);
+    powerMgr.setChargeThreshold(userConfig.settings().chargeThresholdV);
+    powerMgr.setFullBatteryVoltage(userConfig.settings().fullBatteryV);
+
 
 
     // Boot complete — transition to Home screen

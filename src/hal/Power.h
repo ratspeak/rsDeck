@@ -69,6 +69,6 @@ private:
 
     // Battery
     uint8_t _batteryModel = 0;
-    float _chargeThreshold = 4.1f;
-    float _fullBatteryV = 3.8f;
+    float _chargeThreshold = 4.0f;
+    float _fullBatteryV = 3.9f;
 };

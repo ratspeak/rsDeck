@@ -286,9 +286,8 @@ void LvStatusBar::refreshBattery() {
         } else {
             snprintf(buf, sizeof(buf), "%d%%", _battPct);
             col = Theme::TEXT_PRIMARY;
-            // Future stuff, we can enable it, as soon as battery levels are working correctly
-            //if (_battPct <= 15)      col = Theme::ERROR_CLR;
-            //else if (_battPct <= 30) col = Theme::WARNING_CLR;
+            if (_battPct <= 10)      col = Theme::ERROR_CLR;
+            else if (_battPct <= 20) col = Theme::WARNING_CLR;
         }
         lv_label_set_text(_lblBatt, buf);
         lv_obj_set_style_text_color(_lblBatt, lv_color_hex(col), 0);

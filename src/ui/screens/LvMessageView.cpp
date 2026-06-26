@@ -714,7 +714,7 @@ bool LvMessageView::handleLongPress() {
 void LvMessageView::showSendModeMenu() {
     if (_inputText.empty()) return;
     hideSendModeMenu();
-    _sendMenuIdx = 1;
+    _sendMenuIdx = 0;
 
     _sendOverlay = lv_obj_create(lv_layer_top());
     lv_obj_set_size(_sendOverlay, 244, 118);

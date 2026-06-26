@@ -41,7 +41,7 @@ public:
     const ConversationSummary* getConversationSummary(const std::string& peerHex) const;
 
 private:
-    bool sendDirect(LXMFMessage& msg);
+    bool attemptOutboundDelivery(LXMFMessage& msg);
     bool ensureOutboundLink(const RNS::Destination& dest, const RNS::Bytes& destHash, const char* reason);
     void clearDeliveryPreference(const LXMFMessage& msg);
     void processIncoming(const uint8_t* data, size_t len, const RNS::Bytes& destHash);

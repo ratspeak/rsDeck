@@ -72,7 +72,7 @@ void LXMFManager::loop() {
 
         // Keep unresolved peers from churning the UI loop or LoRa airtime.
         // The first attempt is immediate; later path/identity retries happen
-        // every 10s and are capped in sendDirect().
+        // every 10s and are capped in attemptOutboundDelivery().
         if (msg.retries > 0 && (millis() - msg.lastRetryMs) < LXMF_DISCOVERY_RETRY_INTERVAL_MS) {
             ++it;
             continue;
@@ -80,7 +80,7 @@ void LXMFManager::loop() {
 
         msg.lastRetryMs = millis();
 
-        if (sendDirect(msg)) {
+        if (attemptOutboundDelivery(msg)) {
             processed++;
             Serial.printf("[LXMF] Queue drain: status=%s dest=%s\n",
                           msg.statusStr(), msg.destHash.toHex().substr(0, 8).c_str());
@@ -99,7 +99,7 @@ void LXMFManager::loop() {
             clearDeliveryPreference(msg);
             it = _outQueue.erase(it);
         } else {
-            // sendDirect returned false — message stays in queue, try next
+            // attemptOutboundDelivery returned false — message stays in queue, try next
             ++it;
         }
     }
@@ -187,8 +187,8 @@ bool LXMFManager::ensureOutboundLink(const RNS::Destination& dest, const RNS::By
     return false;
 }
 
-bool LXMFManager::sendDirect(LXMFMessage& msg) {
-    Serial.printf("[LXMF] sendDirect: dest=%s link=%s pending=%s\n",
+bool LXMFManager::attemptOutboundDelivery(LXMFMessage& msg) {
+    Serial.printf("[LXMF] attemptOutboundDelivery: dest=%s link=%s pending=%s\n",
         msg.destHash.toHex().substr(0, 12).c_str(),
         _outLink ? (_outLink.status() == RNS::Type::Link::ACTIVE ? "ACTIVE" : "INACTIVE") : "NONE",
         _outLinkPending ? "yes" : "no");

@@ -152,6 +152,7 @@ void AnnounceManager::received_announce(
         auto& node = _nodes[it->second];
         if (node.lastSeen != 0 && now >= node.lastSeen &&
             now - node.lastSeen < ANNOUNCE_MIN_INTERVAL_MS) return;
+        bool identityChanged = !idHex.empty() && node.identityHex != idHex;
         // Saved contacts own their local alias. Incoming announce app_data is
         // still cached below, but must not reset the user-chosen contact name.
         if (!name.empty() && !node.saved) node.name = name;
@@ -167,7 +168,14 @@ void AnnounceManager::received_announce(
             if (nc == _nameCache.end() || nc->second != name) {
                 _nameCache[destHex] = name;
                 _nameCacheDirty = true;
+                saveNameCache();
+                _nameCacheDirty = false;
             }
+        }
+        if (!idHex.empty()) {
+            persistKnownDestinationsAfterAnnounce(
+                identityChanged ? "identity update" : "repeat announce",
+                identityChanged);
         }
         return;
     }
@@ -192,6 +200,8 @@ void AnnounceManager::received_announce(
                     }
                 }
             }
+            saveNameCache();
+            _nameCacheDirty = false;
         }
     }
 
@@ -242,6 +252,9 @@ void AnnounceManager::received_announce(
     if (_loraIf) { node.rssi = _loraIf->lastRxRssi(); node.snr = _loraIf->lastRxSnr(); }
     _hashIndex[key] = (int)_nodes.size();
     _nodes.push_back(node);
+    if (!idHex.empty()) {
+        persistKnownDestinationsAfterAnnounce("new peer", true);
+    }
 }
 
 void AnnounceManager::loop() {
@@ -256,6 +269,19 @@ void AnnounceManager::loop() {
         _nameCacheDirty = false;
         saveNameCache();
     }
+}
+
+void AnnounceManager::persistKnownDestinationsAfterAnnounce(const char* reason, bool force) {
+    unsigned long now = millis();
+    if (!force && _lastKnownDestinationsPersist != 0 &&
+        now - _lastKnownDestinationsPersist < KNOWN_DESTINATION_PERSIST_MIN_INTERVAL_MS) {
+        return;
+    }
+
+    _lastKnownDestinationsPersist = now;
+    RNS::Identity::persist_data();
+    Serial.printf("[ANNOUNCE] Known destinations persisted after %s\n",
+                  reason ? reason : "announce");
 }
 
 int AnnounceManager::nodesOnlineSince(unsigned long maxAgeMs) const {

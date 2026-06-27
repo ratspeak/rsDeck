@@ -1,7 +1,6 @@
 #include "Power.h"
 #include "hal/Display.h"
 #include "hal/Keyboard.h"
-#include "storage/SDStore.h"
 
 
 // Forward declarations — display & keyboard instances provided externally

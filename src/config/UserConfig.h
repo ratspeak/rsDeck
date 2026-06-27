@@ -59,7 +59,7 @@ struct UserSettings {
     bool themeLight = false;          // false = dark (original palette)
 
     // Battery
-    uint8_t batteryDisplay = 0;        // 0 = percent, 1 = bar
+    uint8_t batteryDisplay = 1;        // 0 = percent, 1 = bar
     uint8_t batteryModel = 0;          // 0=lipo, 1=linear
     float chargeThresholdV = 4.0f;     // Battery voltage threshold for indication "is charging"
     float fullBatteryV = 3.9f;         // Battery voltage if 100% charged

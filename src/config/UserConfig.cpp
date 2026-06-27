@@ -109,7 +109,7 @@ bool UserConfig::parseJson(const String& json) {
     // battery settings
     _settings.batteryDisplay     = doc["batt_display"] | 0;
     _settings.batteryModel       = doc["batt_model"]   | 0;
-    _settings.chargeThresholdV = doc["charge_thresh_v"] | 4.1f;
+    _settings.chargeThresholdV = doc["charge_thresh_v"] | 4.0f;
     _settings.fullBatteryV     = doc["full_battery_v"]  | 3.8f;
 
     _settings.gpsTimeEnabled     = doc["gps_time"]     | true;

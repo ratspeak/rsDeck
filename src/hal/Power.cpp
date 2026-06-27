@@ -8,8 +8,6 @@ extern Display display;
 extern Keyboard keyboard;
 
 // Battery type lookup table for getting voltage vs percent
-// interpolated chart from https://www.researchgate.net/figure/Li-ion-battery-discharge-voltage-curve_fig5_363575973
-// the manual chart reading entries are read from chart, while the others are interpolated
 namespace {
 
     struct VoltPoint { float v; int pct; };
@@ -64,7 +62,7 @@ float Power::batteryVoltage() const {
 int Power::batteryPercent() const {
     float v = batteryVoltage();
 
-    // Charging: voltage exceeds the discharge curve's top (3.9V = full).
+    // Charging: voltage exceeds the discharge curve's top (about 3.9V = full).
     // A discharging cell never gets there, so treat this as full.
     if (isCharging())
         return 100;

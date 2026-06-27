@@ -107,7 +107,7 @@ bool UserConfig::parseJson(const String& json) {
     _settings.bleEnabled       = false;
 
     // battery settings
-    _settings.batteryDisplay     = doc["batt_display"] | 0;
+    _settings.batteryDisplay     = doc["batt_display"] | 1;
     _settings.batteryModel       = doc["batt_model"]   | 0;
     _settings.chargeThresholdV = doc["charge_thresh_v"] | 4.0f;
     _settings.fullBatteryV     = doc["full_battery_v"]  | 3.8f;

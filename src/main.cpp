@@ -58,6 +58,7 @@
 #endif
 #include "config/UserConfig.h"
 #include "audio/AudioNotify.h"
+#include "util/PerfTrace.h"
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <atomic>
@@ -1051,11 +1052,40 @@ static void bootRender() {
     // Legacy render kept as fallback
 }
 
+static unsigned long bootTraceStartMs = 0;
+static unsigned long bootTraceLastMs = 0;
+
+static void bootTraceBegin(unsigned long startMs) {
+#if RSDECK_PERF_TRACE
+    bootTraceStartMs = startMs;
+    bootTraceLastMs = startMs;
+#else
+    (void)startMs;
+#endif
+}
+
+static void bootTraceStage(const char* label) {
+#if RSDECK_PERF_TRACE
+    const unsigned long now = millis();
+    Serial.printf("[BOOT-PERF] %-22s +%lums total=%lums heap=%lu psram_free=%lu psram_largest=%lu\n",
+                  label ? label : "?",
+                  now - bootTraceLastMs,
+                  now - bootTraceStartMs,
+                  (unsigned long)ESP.getFreeHeap(),
+                  (unsigned long)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+                  (unsigned long)heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+    bootTraceLastMs = now;
+#else
+    (void)label;
+#endif
+}
+
 // =============================================================================
 // Setup — 26-step boot sequence
 // =============================================================================
 
 void setup() {
+    const unsigned long setupStartMs = millis();
     bool flashMounted = false;
 
     // Step 1: Power pin — CRITICAL: enables all T-Deck Plus peripherals
@@ -1086,17 +1116,21 @@ void setup() {
     Serial.printf("[BOOT] Reset: %s (%d)\n", reasonStr, (int)reason);
     Serial.printf("[BOOT] Heap: %lu  PSRAM: %lu\n",
                   (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getPsramSize());
+    bootTraceBegin(setupStartMs);
+    bootTraceStage("serial-online");
 
     // Dual-boot layout: re-arm the launcher so the next reset shows the chooser.
     auto launcherBoot = rs_deck::returnToLauncherNextBoot();
     if (!launcherBoot.ok) {
         Serial.printf("[BOOT] Launcher return unavailable: %s\n", launcherBoot.message);
     }
+    bootTraceStage("launcher-return");
     if (!psramFound() || heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) < 1024 * 1024) {
         Serial.printf("[BOOT] FATAL: PSRAM unavailable or too fragmented (largest=%lu)\n",
                       (unsigned long)heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
         while (true) delay(1000);
     }
+    bootTraceStage("psram-check");
 
     // Step 3: Initialize I2C bus (shared by keyboard + touchscreen)
     Wire.begin(I2C_SDA, I2C_SCL);
@@ -1108,6 +1142,7 @@ void setup() {
     // Deassert all slave CS pins to prevent bus contention
     pinMode(LORA_CS, OUTPUT); digitalWrite(LORA_CS, HIGH);
     pinMode(SD_CS, OUTPUT);   digitalWrite(SD_CS, HIGH);
+    bootTraceStage("i2c-spi");
 
     // Mount flash before radio bring-up so persisted RF settings are used from
     // the first SX1262 init, instead of always booting at the US default first.
@@ -1120,6 +1155,7 @@ void setup() {
     }
     // Select palette before any LVGL styles are built
     Theme::setScheme(userConfig.settings().themeLight ? Theme::Scheme::LIGHT : Theme::Scheme::DARK);
+    bootTraceStage("early-flash-config");
 
     // Step 4: Radio + SD init BEFORE display
     // Radio and SD must init while SPIClass exclusively owns SPI2_HOST.
@@ -1134,6 +1170,7 @@ void setup() {
     } else {
         Serial.println("[RADIO] SX1262 not detected!");
     }
+    bootTraceStage("radio-init");
 
     // SD card init (shared SPI, right after radio)
     digitalWrite(LORA_CS, HIGH);
@@ -1145,6 +1182,7 @@ void setup() {
     } else {
         Serial.println("[SD] Not detected");
     }
+    bootTraceStage("sd-probe");
 
     // Verify radio SPI still works after SD init
     if (radioOnline) {
@@ -1161,6 +1199,7 @@ void setup() {
     // SPIClass get valid device handles on the same SPI2_HOST bus.
     display.begin();
     Serial.println("[BOOT] Display initialized (LovyanGFX direct)");
+    bootTraceStage("display-init");
 
     // Step 5.5: Initialize LVGL display driver
     if (!display.beginLVGL()) {
@@ -1171,6 +1210,7 @@ void setup() {
         while (true) delay(1000);
     }
     Serial.println("[BOOT] LVGL initialized");
+    bootTraceStage("lvgl-init");
 
     // Verify radio SPI survives display init
     if (radioOnline) {
@@ -1191,21 +1231,25 @@ void setup() {
     // framebuffer; the setProgress() above has now flushed the boot screen.
     // powerMgr at step 24 overrides with the user's configured value.
     display.setBrightness(128);
+    bootTraceStage("boot-screen-painted");
 
     // Step 7: Touch HAL — GT911 I2C
     touch.begin();
     lvBootScreen.setProgress(0.50f, "Touch ready");
     // (LVGL boot renders via lv_timer_handler in setProgress)
+    bootTraceStage("touch-init");
 
     // Step 8: Keyboard HAL — ESP32-C3 I2C
     keyboard.begin();
     lvBootScreen.setProgress(0.52f, "Keyboard ready");
     // (LVGL boot renders via lv_timer_handler in setProgress)
+    bootTraceStage("keyboard-init");
 
     // Step 9: Trackball HAL — GPIO interrupts
     trackball.begin();
     lvBootScreen.setProgress(0.54f, "Trackball ready");
     // (LVGL boot renders via lv_timer_handler in setProgress)
+    bootTraceStage("trackball-init");
 
     // Step 10: Input manager
     inputManager.begin(&keyboard, &trackball, &touch);
@@ -1216,6 +1260,7 @@ void setup() {
 
     lvBootScreen.setProgress(0.55f, "Input ready");
     // (LVGL boot renders via lv_timer_handler in setProgress)
+    bootTraceStage("input-init");
 
     // Step 11: Register hotkeys
     hotkeys.registerHotkey('h', "Help", onHotkeyHelp);
@@ -1234,6 +1279,7 @@ void setup() {
     });
     lvBootScreen.setProgress(0.58f, "Hotkeys registered");
     // (LVGL boot renders via lv_timer_handler in setProgress)
+    bootTraceStage("hotkeys");
 
     // Step 12: Mount LittleFS
     lvBootScreen.setProgress(0.60f, "Mounting flash...");
@@ -1247,6 +1293,7 @@ void setup() {
         flashMounted = true;
         Serial.println("[BOOT] LittleFS mounted OK");
     }
+    bootTraceStage("flash-mounted");
 
     // Step 13: Boot loop detection (NVS)
     {
@@ -1261,6 +1308,7 @@ void setup() {
             }
         }
     }
+    bootTraceStage("bootloop-nvs");
 
     lvBootScreen.setProgress(0.64f, "Loading config...");
     userConfig.load(sdStore, flash);
@@ -1271,6 +1319,7 @@ void setup() {
     }
     inputManager.setTrackballSpeed(userConfig.settings().trackballSpeed);
     applyRadioSettingsToHardware(userConfig.settings(), "BOOT PRE-RNS");
+    bootTraceStage("config-load");
 
     lvBootScreen.setProgress(0.65f, "Starting Reticulum...");
     // (LVGL boot renders via lv_timer_handler in setProgress)
@@ -1283,14 +1332,17 @@ void setup() {
         lvBootScreen.setProgress(0.72f, "RNS: FAILED");
     }
     // (LVGL boot renders via lv_timer_handler in setProgress)
+    bootTraceStage("reticulum-begin");
 
     // Step 15.5: Identity manager
     identityMgr.begin(&flash, &sdStore);
+    bootTraceStage("identity-manager");
 
     // Step 16: Message store
     lvBootScreen.setProgress(0.72f, "Starting messaging...");
     // (LVGL boot renders via lv_timer_handler in setProgress)
     messageStore.begin(&flash, &sdStore, userConfig.settings().sdStorageEnabled);
+    bootTraceStage("message-store");
 
     // Step 17: LXMF init
     lxmf.begin(&rns, &messageStore);
@@ -1303,6 +1355,7 @@ void setup() {
     lxmf.unreadCount();
     lvBootScreen.setProgress(0.75f, "LXMF ready");
     // (LVGL boot renders via lv_timer_handler in setProgress)
+    bootTraceStage("lxmf-begin");
 
     // Step 18: Announce manager
     lvBootScreen.setProgress(0.78f, "Loading contacts...");
@@ -1317,6 +1370,7 @@ void setup() {
     announceManager->loadNameCache();
     announceHandler = RNS::HAnnounceHandler(announceManager);
     RNS::Transport::register_announce_handler(announceHandler);
+    bootTraceStage("contacts-cache");
 
     // No default TCP hub.  Users opt in via Settings → TCP Server →
     // "Ratspeak Hub" (seeds rns.ratspeak.org) or "Custom" (host/port).
@@ -1342,6 +1396,7 @@ void setup() {
             }
         }
     }
+    bootTraceStage("identity-name-sync");
 
     // Step 20: Boot loop recovery
     if (bootLoopRecovery) {
@@ -1350,6 +1405,7 @@ void setup() {
     }
     lvBootScreen.setProgress(0.83f, "Config loaded");
     // (LVGL boot renders via lv_timer_handler in setProgress)
+    bootTraceStage("bootloop-recovery");
 
     // Step 21: Apply radio config
     if (radioOnline && userConfig.settings().loraEnabled) {
@@ -1362,6 +1418,7 @@ void setup() {
     }
     lvBootScreen.setProgress(0.84f, "Radio configured");
     // (LVGL boot renders via lv_timer_handler in setProgress)
+    bootTraceStage("radio-config");
 
     // Step 22: WiFi start
     RatWiFiMode wifiMode = userConfig.settings().wifiMode;
@@ -1418,6 +1475,7 @@ void setup() {
         lvBootScreen.setProgress(0.87f, "WiFi disabled");
         // (LVGL boot renders via lv_timer_handler in setProgress)
     }
+    bootTraceStage("wifi-start");
 
     // Step 23: BLE stays disabled in default builds.
     lvBootScreen.setProgress(0.90f, "Links ready");
@@ -1449,6 +1507,7 @@ void setup() {
     ui.lvStatusBar().setBLEActive(false);
     Serial.println("[BLE] Disabled in default firmware build");
 #endif
+    bootTraceStage("links-ready");
 
     // Step 24: Power manager
     lvBootScreen.setProgress(0.92f, "Power manager...");
@@ -1460,6 +1519,7 @@ void setup() {
     powerMgr.setKbBrightness(userConfig.settings().keyboardBrightness);
     powerMgr.setKbAutoOn(userConfig.settings().keyboardAutoOn);
     powerMgr.setKbAutoOff(userConfig.settings().keyboardAutoOff);
+    bootTraceStage("power-manager");
 
     // Step 24.5: GPS init
 #if HAS_GPS
@@ -1469,6 +1529,7 @@ void setup() {
         gps.setLocationEnabled(userConfig.settings().gpsLocationEnabled);
         gps.begin();
         Serial.println("[BOOT] GPS UART started (MIA-M10Q)");
+        bootTraceStage("gps-start");
     }
 #endif
 
@@ -1478,6 +1539,7 @@ void setup() {
     audio.setEnabled(userConfig.settings().audioEnabled);
     audio.setVolume(userConfig.settings().audioVolume);
     audio.begin();
+    bootTraceStage("audio-init");
 
     // Boot complete — transition to Home screen
     // Yield to LVGL instead of blocking delay
@@ -1485,6 +1547,7 @@ void setup() {
     for (int i = 0; i < 6; i++) { lv_timer_handler(); delay(1); }
     lvBootScreen.setProgress(1.0f, "Ready");
     audio.playBoot();
+    bootTraceStage("boot-ready-screen");
 
     bootComplete = true;
 
@@ -1535,14 +1598,14 @@ void setup() {
     lvHomeScreen.setTCPToggleCallback([]() {
         auto& s = userConfig.settings();
         bool enabled = false;
-        bool hasSavedRelay = false;
+        bool hasSavedTcpServer = false;
         for (const auto& ep : s.tcpConnections) {
-            if (!ep.host.isEmpty()) hasSavedRelay = true;
+            if (!ep.host.isEmpty()) hasSavedTcpServer = true;
             if (!ep.host.isEmpty() && ep.autoConnect) { enabled = true; break; }
         }
         if (enabled) {
             for (auto& ep : s.tcpConnections) ep.autoConnect = false;
-        } else if (hasSavedRelay) {
+        } else if (hasSavedTcpServer) {
             for (auto& ep : s.tcpConnections) {
                 if (!ep.host.isEmpty()) ep.autoConnect = true;
             }
@@ -1556,9 +1619,9 @@ void setup() {
         }
         bool ok = userConfig.save(sdStore, flash);
         ui.lvStatusBar().showToast(
-            ok ? "TCP relay saved; reboot to apply" : "Save failed",
+            ok ? "TCP server saved; reboot to apply" : "Save failed",
             ok ? 3000 : 2000);
-        Serial.printf("[TCP] Saved relay %s (save %s, reboot required)\n",
+        Serial.printf("[TCP] Saved server %s (save %s, reboot required)\n",
                       enabled ? "OFF" : "ON",
                       ok ? "OK" : "FAILED");
     });
@@ -1720,6 +1783,7 @@ void setup() {
     ui.lvTabBar().setTabCallback([](int tab) {
         if (lvTabScreens[tab]) ui.setScreen(lvTabScreens[tab]);
     });
+    bootTraceStage("screen-wiring");
 
     // Data clean screen (first boot only — when SD has old data)
     lvDataCleanScreen.setDoneCallback([](bool wipe) {
@@ -1839,6 +1903,7 @@ void setup() {
         // Everything configured — go straight to home
         goHome();
     }
+    bootTraceStage("boot-routing");
 
     // Clear boot loop counter — we survived!
     {
@@ -1848,17 +1913,20 @@ void setup() {
             prefs.end();
         }
     }
+    bootTraceStage("bootcounter-clear");
 
     if (userConfig.settings().keyboardAutoOn) {
         // We are in ACTIVE power state here, switch keyboard backlight ON
         keyboard.backlightOn();
     }
+    bootTraceStage("keyboard-auto");
 
     Serial.println("[BOOT] rsDeck ready");
     Serial.printf("[BOOT] Summary: radio=%s flash=%s sd=%s\n",
                   radioOnline ? "ONLINE" : "OFFLINE",
                   flash.isReady() ? "OK" : "FAIL",
                   sdStore.isReady() ? "OK" : "FAIL");
+    bootTraceStage("setup-complete");
 }
 
 // =============================================================================

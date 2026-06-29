@@ -8,6 +8,7 @@
 #include <string>
 #include <map>
 #include <set>
+#include <utility>
 
 struct ConversationSummary {
     double lastTimestamp = 0;
@@ -32,12 +33,15 @@ public:
 
     bool saveMessage(LXMFMessage& msg);
     std::vector<LXMFMessage> loadConversation(const std::string& peerHex) const;
+    std::vector<LXMFMessage> loadConversationTail(const std::string& peerHex, size_t maxMessages) const;
     const std::vector<std::string>& conversations() const { return _conversations; }
     void refreshConversations();
     int messageCount(const std::string& peerHex) const;
     bool deleteConversation(const std::string& peerHex);
     std::vector<LXMFMessage> loadPendingOutgoing() const;
     std::vector<std::string> loadRecentMessageIds(size_t maxIds) const;
+    const std::vector<LXMFMessage>& startupPendingOutgoing() const { return _startupPendingOutgoing; }
+    std::vector<std::string> startupRecentMessageIds(size_t maxIds) const;
     void markConversationRead(const std::string& peerHex);
     bool updateMessageStatus(const std::string& peerHex, double timestamp, bool incoming, LXMFStatus newStatus);
     bool updateMessageStatusByCounter(const std::string& peerHex, uint32_t counter, bool incoming, LXMFStatus newStatus);
@@ -56,7 +60,10 @@ private:
     void initReceiveCounter();
     void buildSummaries();
     void rebuildSummary(const std::string& peerHex);
-    ConversationSummary buildSummaryForPeer(const std::string& peerHex) const;
+    ConversationSummary buildSummaryForPeer(
+        const std::string& peerHex,
+        std::vector<LXMFMessage>* pendingOut = nullptr,
+        std::vector<std::pair<uint32_t, std::string>>* recentIds = nullptr) const;
     void updateSummaryStatus(const std::string& peerHex, uint32_t counter, LXMFStatus oldStatus, LXMFStatus newStatus);
     void bumpRevision();
 
@@ -65,6 +72,8 @@ private:
     bool _externalStorageEnabled = false;
     std::vector<std::string> _conversations;
     std::map<std::string, ConversationSummary> _summaries;
+    std::vector<LXMFMessage> _startupPendingOutgoing;
+    std::vector<std::string> _startupRecentMessageIds;
     uint32_t _nextReceiveCounter = 0;
     uint32_t _revision = 0;
 };

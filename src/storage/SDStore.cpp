@@ -1,5 +1,6 @@
 #include "SDStore.h"
 #include "config/Config.h"
+#include "util/PerfTrace.h"
 
 bool SDStore::begin(SPIClass* spi, int csPin) {
     if (!spi) return false;
@@ -93,7 +94,11 @@ bool SDStore::readFile(const char* path, uint8_t* buffer, size_t maxLen, size_t&
 }
 
 bool SDStore::writeAtomic(const char* path, const uint8_t* data, size_t len) {
-    if (!_ready) return false;
+    unsigned long startMs = PerfTrace::nowMs();
+    if (!_ready) {
+        PerfTrace::write("sd", "atomic", path, len, startMs, false);
+        return false;
+    }
 
     String tmpPath = String(path) + ".tmp";
     String bakPath = String(path) + ".bak";
@@ -101,6 +106,7 @@ bool SDStore::writeAtomic(const char* path, const uint8_t* data, size_t len) {
     File f = SD.open(tmpPath.c_str(), FILE_WRITE);
     if (!f) {
         Serial.printf("[SD] writeAtomic: failed to open tmp %s\n", tmpPath.c_str());
+        PerfTrace::write("sd", "atomic", path, len, startMs, false);
         return false;
     }
     size_t written = f.write(data, len);
@@ -108,6 +114,7 @@ bool SDStore::writeAtomic(const char* path, const uint8_t* data, size_t len) {
     if (written != len) {
         Serial.printf("[SD] writeAtomic: write incomplete (%d/%d)\n", (int)written, (int)len);
         SD.remove(tmpPath.c_str());
+        PerfTrace::write("sd", "atomic", path, len, startMs, false);
         return false;
     }
 
@@ -116,6 +123,7 @@ bool SDStore::writeAtomic(const char* path, const uint8_t* data, size_t len) {
         Serial.println("[SD] writeAtomic: verify failed");
         if (verify) verify.close();
         SD.remove(tmpPath.c_str());
+        PerfTrace::write("sd", "atomic", path, len, startMs, false);
         return false;
     }
     verify.close();
@@ -132,26 +140,35 @@ bool SDStore::writeAtomic(const char* path, const uint8_t* data, size_t len) {
     if (!SD.rename(tmpPath.c_str(), path)) {
         Serial.printf("[SD] writeAtomic: rename failed %s -> %s\n", tmpPath.c_str(), path);
         if (SD.exists(bakPath.c_str())) { SD.rename(bakPath.c_str(), path); }
+        PerfTrace::write("sd", "atomic", path, len, startMs, false);
         return false;
     }
     SD.remove(bakPath.c_str());
+    PerfTrace::write("sd", "atomic", path, len, startMs, true);
     return true;
 }
 
 bool SDStore::writeSimple(const char* path, const uint8_t* data, size_t len) {
-    if (!_ready) return false;
+    unsigned long startMs = PerfTrace::nowMs();
+    if (!_ready) {
+        PerfTrace::write("sd", "simple", path, len, startMs, false);
+        return false;
+    }
 
     File f = SD.open(path, FILE_WRITE);
     if (!f) {
         Serial.printf("[SD] writeSimple: failed to open %s\n", path);
+        PerfTrace::write("sd", "simple", path, len, startMs, false);
         return false;
     }
     size_t written = f.write(data, len);
     f.close();
     if (written != len) {
         Serial.printf("[SD] writeSimple: write incomplete (%d/%d)\n", (int)written, (int)len);
+        PerfTrace::write("sd", "simple", path, len, startMs, false);
         return false;
     }
+    PerfTrace::write("sd", "simple", path, len, startMs, true);
     return true;
 }
 

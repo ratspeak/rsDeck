@@ -1,4 +1,5 @@
 #include "FlashStore.h"
+#include "util/PerfTrace.h"
 
 bool FlashStore::begin() {
     // Legacy standalone builds label this partition "littlefs"; bmorcelli/Launcher
@@ -71,17 +72,25 @@ bool FlashStore::remove(const char* path) {
 }
 
 bool FlashStore::writeAtomic(const char* path, const uint8_t* data, size_t len) {
-    if (!_ready) return false;
+    unsigned long startMs = PerfTrace::nowMs();
+    if (!_ready) {
+        PerfTrace::write("flash", "atomic", path, len, startMs, false);
+        return false;
+    }
 
     String tmpPath = String(path) + ".tmp";
     String bakPath = String(path) + ".bak";
 
     File f = LittleFS.open(tmpPath.c_str(), "w");
-    if (!f) return false;
+    if (!f) {
+        PerfTrace::write("flash", "atomic", path, len, startMs, false);
+        return false;
+    }
     size_t written = f.write(data, len);
     f.close();
     if (written != len) {
         LittleFS.remove(tmpPath.c_str());
+        PerfTrace::write("flash", "atomic", path, len, startMs, false);
         return false;
     }
 
@@ -89,6 +98,7 @@ bool FlashStore::writeAtomic(const char* path, const uint8_t* data, size_t len) 
     if (!verify || verify.size() != len) {
         if (verify) verify.close();
         LittleFS.remove(tmpPath.c_str());
+        PerfTrace::write("flash", "atomic", path, len, startMs, false);
         return false;
     }
     verify.close();
@@ -102,12 +112,14 @@ bool FlashStore::writeAtomic(const char* path, const uint8_t* data, size_t len) 
         if (LittleFS.exists(bakPath.c_str())) {
             LittleFS.rename(bakPath.c_str(), path);
         }
+        PerfTrace::write("flash", "atomic", path, len, startMs, false);
         return false;
     }
 
     // Clean up backup file after successful write
     LittleFS.remove(bakPath.c_str());
 
+    PerfTrace::write("flash", "atomic", path, len, startMs, true);
     return true;
 }
 

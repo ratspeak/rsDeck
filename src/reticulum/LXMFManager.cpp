@@ -22,11 +22,11 @@ bool LXMFManager::begin(ReticulumManager* rns, MessageStore* store) {
     dest.set_packet_callback(onPacketReceived);
     dest.set_link_established_callback(onLinkEstablished);
     if (_store) {
-        for (const auto& id : _store->loadRecentMessageIds(MAX_SEEN_IDS)) {
+        for (const auto& id : _store->startupRecentMessageIds(MAX_SEEN_IDS)) {
             rememberMessageId(id);
         }
-        std::vector<LXMFMessage> pending = _store->loadPendingOutgoing();
-        for (auto& msg : pending) {
+        const std::vector<LXMFMessage>& pending = _store->startupPendingOutgoing();
+        for (auto msg : pending) {
             if ((int)_outQueue.size() >= RSDECK_MAX_OUTQUEUE) break;
             msg.lastRetryMs = 0;
             _outQueue.push_back(msg);
@@ -505,6 +505,11 @@ const std::vector<std::string>& LXMFManager::conversations() const {
 
 std::vector<LXMFMessage> LXMFManager::getMessages(const std::string& peerHex) const {
     if (_store) return _store->loadConversation(peerHex);
+    return {};
+}
+
+std::vector<LXMFMessage> LXMFManager::getRecentMessages(const std::string& peerHex, size_t maxMessages) const {
+    if (_store) return _store->loadConversationTail(peerHex, maxMessages);
     return {};
 }
 

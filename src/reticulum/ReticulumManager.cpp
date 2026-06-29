@@ -1,8 +1,10 @@
 // Direct port from Ratputer — microReticulum integration
 #include "ReticulumManager.h"
 #include "config/Config.h"
+#include "util/PerfTrace.h"
 #include <LittleFS.h>
 #include <Preferences.h>
+#include <cstring>
 #include <unordered_map>
 #include <string>
 
@@ -22,6 +24,7 @@ size_t LittleFSFileSystem::read_file(const char* p, RNS::Bytes& data) {
 }
 
 size_t LittleFSFileSystem::write_file(const char* p, const RNS::Bytes& data) {
+    unsigned long startMs = PerfTrace::nowMs();
     String path = String(p);
     int lastSlash = path.lastIndexOf('/');
     if (lastSlash > 0) {
@@ -29,9 +32,13 @@ size_t LittleFSFileSystem::write_file(const char* p, const RNS::Bytes& data) {
         if (!LittleFS.exists(dir.c_str())) { LittleFS.mkdir(dir.c_str()); }
     }
     File f = LittleFS.open(p, "w");
-    if (!f) return 0;
+    if (!f) {
+        PerfTrace::write("flash", "rns-write", p, data.size(), startMs, false);
+        return 0;
+    }
     size_t w = f.write(data.data(), data.size());
     f.close();
+    PerfTrace::write("flash", "rns-write", p, data.size(), startMs, w == data.size());
     return w;
 }
 
@@ -74,19 +81,29 @@ bool copyFlashToSD(SDStore* sd, const char* flashPath, const char* sdPath) {
     if (!sd || !sd->isReady()) return false;
     File in = LittleFS.open(flashPath, "r");
     if (!in || in.size() == 0) { if (in) in.close(); return false; }
+    unsigned long startMs = PerfTrace::nowMs();
+    size_t copiedBytes = 0;
 
     String path = String(sdPath);
     int lastSlash = path.lastIndexOf('/');
     if (lastSlash > 0) {
         String dir = path.substring(0, lastSlash);
-        if (!sd->ensureDir(dir.c_str())) { in.close(); return false; }
+        if (!sd->ensureDir(dir.c_str())) {
+            in.close();
+            PerfTrace::write("sd", "rns-copy", sdPath, copiedBytes, startMs, false);
+            return false;
+        }
     }
 
     String tmpPath = path + ".tmp";
     String bakPath = path + ".bak";
     SD.remove(tmpPath.c_str());
     File out = SD.open(tmpPath.c_str(), FILE_WRITE);
-    if (!out) { in.close(); return false; }
+    if (!out) {
+        in.close();
+        PerfTrace::write("sd", "rns-copy", sdPath, copiedBytes, startMs, false);
+        return false;
+    }
 
     uint8_t buf[RNS_COPY_CHUNK];
     bool ok = true;
@@ -94,12 +111,17 @@ bool copyFlashToSD(SDStore* sd, const char* flashPath, const char* sdPath) {
         size_t n = in.read(buf, sizeof(buf));
         if (n == 0) break;
         if (out.write(buf, n) != n) { ok = false; break; }
+        copiedBytes += n;
         RNS::Utilities::OS::reset_watchdog();
     }
     in.close();
     out.close();
 
-    if (!ok) { SD.remove(tmpPath.c_str()); return false; }
+    if (!ok) {
+        SD.remove(tmpPath.c_str());
+        PerfTrace::write("sd", "rns-copy", sdPath, copiedBytes, startMs, false);
+        return false;
+    }
     if (SD.exists(sdPath)) {
         SD.remove(bakPath.c_str());
         SD.rename(sdPath, bakPath.c_str());
@@ -108,24 +130,53 @@ bool copyFlashToSD(SDStore* sd, const char* flashPath, const char* sdPath) {
     if (!SD.rename(tmpPath.c_str(), sdPath)) {
         if (SD.exists(bakPath.c_str())) SD.rename(bakPath.c_str(), sdPath);
         SD.remove(tmpPath.c_str());
+        PerfTrace::write("sd", "rns-copy", sdPath, copiedBytes, startMs, false);
         return false;
     }
     SD.remove(bakPath.c_str());
+    PerfTrace::write("sd", "rns-copy", sdPath, copiedBytes, startMs, true);
     return true;
 }
 
 class LittleFSStreamImpl : public RNS::FileStreamImpl {
 public:
-    LittleFSStreamImpl(File&& f) : _f(std::move(f)) {}
-    ~LittleFSStreamImpl() override { if (_f) _f.close(); }
+    LittleFSStreamImpl(File&& f, const char* path, RNS::FileStream::MODE mode)
+        : _f(std::move(f)), _mode(mode), _startMs(PerfTrace::nowMs()) {
+        strncpy(_path, path ? path : "?", sizeof(_path) - 1);
+        _path[sizeof(_path) - 1] = '\0';
+    }
+    ~LittleFSStreamImpl() override { close(); }
 
 protected:
-    const char* name() override { return _f ? _f.name() : ""; }
+    const char* name() override { return _path; }
     size_t size() override { return _f ? _f.size() : 0; }
-    void close() override { if (_f) _f.close(); }
+    void close() override {
+        if (!_f) return;
+        if (!_logged && _mode != RNS::FileStream::MODE_READ) {
+            PerfTrace::write("flash",
+                             _mode == RNS::FileStream::MODE_APPEND ? "rns-stream-append" : "rns-stream",
+                             _path, _bytesWritten, _startMs, !_writeFailed);
+            _logged = true;
+        }
+        _f.close();
+    }
 
-    size_t write(uint8_t byte) override { return _f ? _f.write(byte) : 0; }
-    size_t write(const uint8_t* buffer, size_t len) override { return _f ? _f.write(buffer, len) : 0; }
+    size_t write(uint8_t byte) override {
+        size_t written = _f ? _f.write(byte) : 0;
+        if (_mode != RNS::FileStream::MODE_READ) {
+            _bytesWritten += written;
+            if (written != 1) _writeFailed = true;
+        }
+        return written;
+    }
+    size_t write(const uint8_t* buffer, size_t len) override {
+        size_t written = _f ? _f.write(buffer, len) : 0;
+        if (_mode != RNS::FileStream::MODE_READ) {
+            _bytesWritten += written;
+            if (written != len) _writeFailed = true;
+        }
+        return written;
+    }
 
     int available() override { return _f ? _f.available() : 0; }
     int read() override { return _f ? _f.read() : -1; }
@@ -134,6 +185,12 @@ protected:
 
 private:
     File _f;
+    RNS::FileStream::MODE _mode;
+    unsigned long _startMs = 0;
+    size_t _bytesWritten = 0;
+    bool _writeFailed = false;
+    bool _logged = false;
+    char _path[64] = {};
 };
 }  // namespace
 
@@ -150,7 +207,7 @@ RNS::FileStream LittleFSFileSystem::open_file(const char* path, RNS::FileStream:
     }
     File f = LittleFS.open(path, openMode);
     if (!f) return {RNS::Type::NONE};
-    return RNS::FileStream(new LittleFSStreamImpl(std::move(f)));
+    return RNS::FileStream(new LittleFSStreamImpl(std::move(f), path, mode));
 }
 bool LittleFSFileSystem::remove_file(const char* p) { return LittleFS.remove(p); }
 bool LittleFSFileSystem::rename_file(const char* f, const char* t) { return LittleFS.rename(f, t); }
@@ -359,20 +416,37 @@ void ReticulumManager::loop() {
 // node, so path tables are intentionally not persisted across boots.
 void ReticulumManager::persistData() {
     unsigned long start = millis();
+    unsigned long identityPersistMs = 0;
+    unsigned long sdMirrorMs = 0;
+    size_t sdMirrorBytes = 0;
+    bool sdMirrorAttempted = false;
+    bool sdMirrorOk = false;
+    const char* cycleName = "identity";
     switch (_persistCycle) {
         case 0:
+        {
+            unsigned long phaseMs = millis();
             RNS::Identity::persist_data();
+            identityPersistMs = millis() - phaseMs;
             break;
+        }
         case 1:
+            cycleName = "sd-mirror";
             if (_sd && _sd->isReady()) {
                 static const char* files[] = {"/known_destinations"};
                 for (const char* name : files) {
                     File f = LittleFS.open(name, "r");
                     if (f && f.size() > 0) {
+                        size_t len = f.size();
                         f.close();
                         char sdPath[64];
                         snprintf(sdPath, sizeof(sdPath), "/ratdeck/transport%s", name);
-                        copyFlashToSD(_sd, name, sdPath);
+                        unsigned long phaseMs = millis();
+                        bool ok = copyFlashToSD(_sd, name, sdPath);
+                        sdMirrorMs += millis() - phaseMs;
+                        sdMirrorBytes += ok ? len : 0;
+                        sdMirrorAttempted = true;
+                        sdMirrorOk = sdMirrorOk || ok;
                     } else {
                         if (f) f.close();
                     }
@@ -381,7 +455,10 @@ void ReticulumManager::persistData() {
             break;
     }
     unsigned long dur = millis() - start;
-    Serial.printf("[PERSIST] Cycle %d done (%lums)\n", _persistCycle, dur);
+    Serial.printf("[PERSIST] Cycle %d %s done total=%lums identity=%lums sd_copy=%lums sd_bytes=%u sd=%s\n",
+                  _persistCycle, cycleName, dur, identityPersistMs, sdMirrorMs,
+                  (unsigned)sdMirrorBytes,
+                  sdMirrorAttempted ? (sdMirrorOk ? "ok" : "fail") : "skip");
     if (dur > 500) {
         Serial.printf("[PERSIST] WARNING: Cycle %d blocked for %lums!\n", _persistCycle, dur);
     }

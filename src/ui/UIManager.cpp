@@ -2,6 +2,7 @@
 #include "Theme.h"
 #include "LvTheme.h"
 #include "LvInput.h"
+#include "util/PerfTrace.h"
 
 // --- LvScreen base ---
 
@@ -42,27 +43,55 @@ void UIManager::begin() {
 
 void UIManager::setScreen(LvScreen* screen) {
     if (_currentLvScreen == screen) return;
+    const char* fromTitle = _currentLvScreen ? _currentLvScreen->title() : "none";
+    const char* toTitle = screen ? screen->title() : "none";
+    unsigned long startMs = PerfTrace::nowMs();
+    unsigned long exitMs = 0;
+    unsigned long destroyMs = 0;
+    unsigned long showMs = 0;
+    unsigned long cleanMs = 0;
+    unsigned long createMs = 0;
+    unsigned long enterMs = 0;
 
     // Transition from previous LVGL screen
     if (_currentLvScreen) {
+        unsigned long phaseMs = millis();
         _currentLvScreen->onExit();
+        exitMs = millis() - phaseMs;
+        phaseMs = millis();
         _currentLvScreen->destroyUI();
+        destroyMs = millis() - phaseMs;
     }
 
     _currentLvScreen = screen;
 
     // Show LVGL layers
+    unsigned long phaseMs = millis();
     if (!_bootMode) {
         lv_obj_clear_flag(_lvStatusBar.obj(), LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(_lvTabBar.obj(), LV_OBJ_FLAG_HIDDEN);
     }
     lv_obj_clear_flag(_lvContent, LV_OBJ_FLAG_HIDDEN);
+    showMs = millis() - phaseMs;
 
     if (_currentLvScreen) {
         // Clean content area
+        phaseMs = millis();
         lv_obj_clean(_lvContent);
+        cleanMs = millis() - phaseMs;
+        phaseMs = millis();
         _currentLvScreen->createUI(_lvContent);
+        createMs = millis() - phaseMs;
+        phaseMs = millis();
         _currentLvScreen->onEnter();
+        enterMs = millis() - phaseMs;
+    }
+
+    unsigned long elapsed = millis() - startMs;
+    if (PerfTrace::shouldLog(elapsed, RSDECK_PERF_UI_TRACE_MS)) {
+        Serial.printf("[PERF] UI transition: %s -> %s total=%lums exit=%lums destroy=%lums show=%lums clean=%lums create=%lums enter=%lums boot=%s\n",
+                      fromTitle, toTitle, elapsed, exitMs, destroyMs, showMs,
+                      cleanMs, createMs, enterMs, _bootMode ? "yes" : "no");
     }
 }
 

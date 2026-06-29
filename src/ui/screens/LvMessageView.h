@@ -35,6 +35,7 @@ private:
     void appendMessage(const LXMFMessage& msg);
     std::string getPeerName();
     void updateHeader();
+    void markVisibleConversationRead();
     void updateComposerState();
     void refreshComposerPlaceholder();
     void updateComposerText();
@@ -50,8 +51,10 @@ private:
     std::string _peerHex;
     std::string _inputText;
     int _lastMsgCount = -1;
+    int _knownTotalCount = -1;
     unsigned long _lastRefreshMs = 0;
     std::vector<LXMFMessage> _cachedMsgs;
+    bool _markReadPending = false;
 
     void updateMessageStatus(int msgIdx, LXMFStatus status);
     static void applyStatusGlyph(lv_obj_t* lbl, LXMFStatus status);
@@ -77,5 +80,6 @@ private:
     std::vector<lv_obj_t*> _bubbleBoxes;
 
     static constexpr unsigned long REFRESH_INTERVAL_MS = 2000;  // Check for new messages every 2s
+    static constexpr size_t CHAT_VIEW_MAX_MESSAGES = 40;
     static constexpr size_t MAX_COMPOSER_CHARS = 120;
 };

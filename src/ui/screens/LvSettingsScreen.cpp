@@ -179,8 +179,8 @@ bool LvSettingsScreen::settingNeedsReboot(const SettingItem& item) const {
     if (labelEq(item.label, "WiFi Profile")) return s.wifiSTASelected != _rebootSnap.wifiSTASelected;
     if (isWiFiSSIDLabel(item.label) || isWiFiPasswordLabel(item.label)) return interfaceSettingsChanged();
     if (labelEq(item.label, "Scan Networks") || labelEq(item.label, "Forget Network")) return interfaceSettingsChanged();
-    if (labelEq(item.label, "TCP Relay") || labelEq(item.label, "Relay Host") ||
-        labelEq(item.label, "Relay Port")) return tcpSettingsChanged();
+    if (labelEq(item.label, "TCP Server") || labelEq(item.label, "Host") ||
+        labelEq(item.label, "Port")) return tcpSettingsChanged();
     if (labelEq(item.label, "LAN Discovery")) return s.autoIfaceEnabled != _rebootSnap.autoIfaceEnabled;
     if (labelEq(item.label, "SD Message Store")) return storageSettingsChanged();
     return false;
@@ -807,7 +807,7 @@ void LvSettingsScreen::buildItems() {
     }
     {
         SettingItem tcpPreset;
-        tcpPreset.label = "TCP Relay";
+        tcpPreset.label = "TCP Server";
         tcpPreset.type = SettingType::ENUM_CHOICE;
         tcpPreset.getter = [&s]() {
             for (auto& ep : s.tcpConnections) {
@@ -837,7 +837,7 @@ void LvSettingsScreen::buildItems() {
     }
     {
         SettingItem tcpHost;
-        tcpHost.label = "Relay Host";
+        tcpHost.label = "Host";
         tcpHost.type = SettingType::TEXT_INPUT;
         tcpHost.textGetter = [&s]() { return s.tcpConnections.empty() ? String("") : s.tcpConnections[0].host; };
         tcpHost.textSetter = [&s](const String& v) {
@@ -850,7 +850,7 @@ void LvSettingsScreen::buildItems() {
         _items.push_back(tcpHost);
         idx++;
     }
-    _items.push_back({"Relay Port", SettingType::INTEGER,
+    _items.push_back({"Port", SettingType::INTEGER,
         [&s]() { return s.tcpConnections.empty() ? TCP_DEFAULT_PORT : (int)s.tcpConnections[0].port; },
         [&s](int v) {
             if (s.tcpConnections.empty()) {
@@ -2138,7 +2138,7 @@ void LvSettingsScreen::applyAndSave() {
     else if (_sd && _flash) { saved = _cfg->save(*_sd, *_flash); }
     else if (_flash) { saved = _cfg->save(*_flash); }
 
-    // TCP relay changes are persisted only. Recreating clients live can race
+    // TCP server changes are persisted only. Recreating clients live can race
     // in-flight sockets/netif teardown on ESP32; reboot applies them cleanly.
 
     // Apply GPS toggle live (start/stop GPS UART)
@@ -2156,12 +2156,12 @@ void LvSettingsScreen::applyAndSave() {
             _ui->lvStatusBar().showToast("Save failed", 2000);
         } else if (_rebootNeeded && !wasRebootNeeded) {
             _ui->lvStatusBar().showToast(
-                tcpChanged ? "TCP relay saved; reboot to apply" : "Interface changes saved; reboot to apply",
+                tcpChanged ? "TCP server saved; reboot to apply" : "Interface changes saved; reboot to apply",
                 3000);
         } else if (!_rebootNeeded && wasRebootNeeded) {
             _ui->lvStatusBar().showToast("Pending reboot cleared", 1500);
         } else if (tcpChanged) {
-            _ui->lvStatusBar().showToast("TCP relay saved; reboot to apply", 3000);
+            _ui->lvStatusBar().showToast("TCP server saved; reboot to apply", 3000);
         } else {
             _ui->lvStatusBar().showToast("Saved", 800);
         }

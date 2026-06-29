@@ -35,6 +35,7 @@ public:
     uint32_t storeRevision() const { return _store ? _store->revision() : 0; }
     const std::vector<std::string>& conversations() const;
     std::vector<LXMFMessage> getMessages(const std::string& peerHex) const;
+    std::vector<LXMFMessage> getRecentMessages(const std::string& peerHex, size_t maxMessages) const;
     int unreadCount(const std::string& peerHex = "") const;
     void markRead(const std::string& peerHex);
     bool deleteConversation(const std::string& peerHex);

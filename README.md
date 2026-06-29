@@ -6,7 +6,7 @@
 
 [![Status](https://img.shields.io/badge/status-beta-yellow.svg)](#install)
 [![License](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.1-success.svg)](https://github.com/ratspeak/rsDeck/releases)
+[![Version](https://img.shields.io/badge/version-2.0.2-success.svg)](https://github.com/ratspeak/rsDeck/releases)
 
 [Ratspeak](https://github.com/ratspeak/Ratspeak) |
 [Docs](https://ratspeak.org/docs.html) |

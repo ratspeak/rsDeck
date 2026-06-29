@@ -4,6 +4,7 @@
 #include "storage/SDStore.h"
 #include "storage/FlashStore.h"
 #include "transport/LoRaInterface.h"
+#include "util/PerfTrace.h"
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 
@@ -279,9 +280,11 @@ void AnnounceManager::persistKnownDestinationsAfterAnnounce(const char* reason, 
     }
 
     _lastKnownDestinationsPersist = now;
+    unsigned long startMs = millis();
     RNS::Identity::persist_data();
-    Serial.printf("[ANNOUNCE] Known destinations persisted after %s\n",
-                  reason ? reason : "announce");
+    unsigned long elapsed = millis() - startMs;
+    Serial.printf("[ANNOUNCE] Known destinations persisted after %s (force=%s in %lums)\n",
+                  reason ? reason : "announce", force ? "yes" : "no", elapsed);
 }
 
 int AnnounceManager::nodesOnlineSince(unsigned long maxAgeMs) const {
@@ -470,19 +473,36 @@ std::string AnnounceManager::lookupName(const std::string& hexHash) const {
 }
 
 void AnnounceManager::saveNameCache() {
+    unsigned long startMs = millis();
     JsonDocument doc;
     for (auto& kv : _nameCache) {
         doc[kv.first] = kv.second;
     }
     String json;
+    unsigned long serializeStartMs = millis();
     serializeJson(doc, json);
+    unsigned long serializeMs = millis() - serializeStartMs;
+    size_t bytes = json.length();
+    bool sdOk = false;
+    bool flashOk = false;
+    unsigned long sdMs = 0;
+    unsigned long flashMs = 0;
     if (_sd && _sd->isReady()) {
-        _sd->writeString("/ratdeck/config/names.json", json);
+        unsigned long writeStartMs = millis();
+        sdOk = _sd->writeString("/ratdeck/config/names.json", json);
+        sdMs = millis() - writeStartMs;
     }
     if (_flash) {
-        _flash->writeString("/config/names.json", json);
+        unsigned long writeStartMs = millis();
+        flashOk = _flash->writeString("/config/names.json", json);
+        flashMs = millis() - writeStartMs;
     }
-    Serial.printf("[ANNOUNCE] Name cache saved (%d entries)\n", (int)_nameCache.size());
+    unsigned long elapsed = millis() - startMs;
+    Serial.printf("[ANNOUNCE] Name cache saved (%d entries, bytes=%u, serialize=%lums sd=%s/%lums flash=%s/%lums total=%lums)\n",
+                  (int)_nameCache.size(), (unsigned)bytes, serializeMs,
+                  (_sd && _sd->isReady()) ? (sdOk ? "ok" : "fail") : "skip", sdMs,
+                  _flash ? (flashOk ? "ok" : "fail") : "skip", flashMs,
+                  elapsed);
 }
 
 void AnnounceManager::loadNameCache() {

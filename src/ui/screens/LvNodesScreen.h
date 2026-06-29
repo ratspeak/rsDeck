@@ -65,6 +65,10 @@ private:
     int _lastNodeCount = -1;
     int _lastContactCount = -1;
 
+    // Search bar
+    lv_obj_t* _searchLabel = nullptr;
+    String _searchText;
+
     // Sorted index vectors (into _am->nodes())
     std::vector<int> _sortedContactIndices;
     std::vector<int> _sortedOnlineIndices;

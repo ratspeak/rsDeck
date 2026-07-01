@@ -54,6 +54,17 @@ void LvStatusBar::create(lv_obj_t* parent) {
     lv_label_set_long_mode(_lblBatt, LV_LABEL_LONG_CLIP);
     lv_obj_align(_lblBatt, LV_ALIGN_RIGHT_MID, -4, 0);
 
+    // Right: battery bar
+    _barBatt = lv_bar_create(_bar);
+    lv_obj_set_size(_barBatt, 20, 8);
+    lv_bar_set_range(_barBatt, 0, 100);
+    lv_bar_set_value(_barBatt, 0, LV_ANIM_OFF);
+    lv_obj_align(_barBatt, LV_ALIGN_RIGHT_MID, -4, 0);
+    lv_obj_set_style_bg_color(_barBatt, lv_color_hex(0x444444), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(_barBatt, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(_barBatt, lv_color_hex(0xFFFFFF), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(_barBatt, LV_OPA_COVER, LV_PART_INDICATOR);
+
     // Toast overlay (hidden by default). It is a child of the bar so boot mode
     // and other shell visibility changes affect it with the status bar.
     _toast = lv_obj_create(_bar);
@@ -185,6 +196,12 @@ void LvStatusBar::setBatteryPercent(int pct) {
     refreshBattery();
 }
 
+void LvStatusBar::setBatteryDisplay(uint8_t mode) {
+    if (_battDisplay == mode) return;
+    _battDisplay = mode;
+    refreshBattery();
+}
+
 void LvStatusBar::flashAnnounce() {
     _announceFlashEnd = millis() + 1000;
     refreshIndicators();
@@ -231,22 +248,60 @@ void LvStatusBar::refreshIndicators() {
 }
 
 void LvStatusBar::refreshBattery() {
-    if (!_lblBatt) return;
+    if (!_lblBatt || !_barBatt) return;
 
-    char buf[8];
-    uint32_t col = Theme::TEXT_MUTED;
-    if (_battPct < 0) {
-        snprintf(buf, sizeof(buf), "--%%");
+    if(_battDisplay == 1){
+        // Bar mode
+        lv_obj_clear_flag(_barBatt, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(_lblBatt, LV_OBJ_FLAG_HIDDEN);
+
+        lv_bar_set_value(_barBatt, _battPct < 0 ? 0 : _battPct, LV_ANIM_OFF);
+
+        uint32_t indicatorCol;
+        if (_isCharging) {
+            indicatorCol = Theme::SUCCESS;
+
+        } else if (_battPct >= 0 && _battPct <= 10) {
+            indicatorCol = Theme::ERROR_CLR;
+        } else if (_battPct >= 0 && _battPct <= 20) {
+            indicatorCol = Theme::WARNING_CLR;
+
+        } else {
+            indicatorCol = 0xFFFFFF;
+        }
+        lv_obj_set_style_bg_color(_barBatt, lv_color_hex(indicatorCol), LV_PART_INDICATOR);
+
     } else {
-        snprintf(buf, sizeof(buf), "%d%%", _battPct);
-        col = Theme::TEXT_PRIMARY;
-        if (_battPct <= 15) col = Theme::ERROR_CLR;
-        else if (_battPct <= 30) col = Theme::WARNING_CLR;
+        // Percent mode
+        lv_obj_clear_flag(_lblBatt, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(_barBatt, LV_OBJ_FLAG_HIDDEN);
+
+        char buf[8];
+        uint32_t col = Theme::TEXT_MUTED;
+        if (_battPct < 0) {
+            snprintf(buf, sizeof(buf), "--%%");
+        } else if (_isCharging) {
+            snprintf(buf, sizeof(buf), "+%d%%", _battPct);
+            col = Theme::SUCCESS;
+        } else {
+            snprintf(buf, sizeof(buf), "%d%%", _battPct);
+            col = Theme::TEXT_PRIMARY;
+            if (_battPct <= 10)      col = Theme::ERROR_CLR;
+            else if (_battPct <= 20) col = Theme::WARNING_CLR;
+        }
+        lv_label_set_text(_lblBatt, buf);
+        lv_obj_set_style_text_color(_lblBatt, lv_color_hex(col), 0);
     }
 
-    lv_label_set_text(_lblBatt, buf);
-    lv_obj_set_style_text_color(_lblBatt, lv_color_hex(col), 0);
+
 }
+
+void LvStatusBar::setCharging(bool charging) {
+    if (_isCharging == charging) return;
+    _isCharging = charging;
+    refreshBattery();
+}
+
 
 void LvStatusBar::refreshTimeColor() {
     if (!_lblTime) return;

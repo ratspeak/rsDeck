@@ -1541,6 +1541,15 @@ void setup() {
     audio.begin();
     bootTraceStage("audio-init");
 
+
+    // Step 26: Battery init
+    ui.lvStatusBar().setBatteryDisplay(userConfig.settings().batteryDisplay);
+    powerMgr.setBatteryModel(userConfig.settings().batteryModel);
+    powerMgr.setChargeThreshold(userConfig.settings().chargeThresholdV);
+    powerMgr.setFullBatteryVoltage(userConfig.settings().fullBatteryV);
+
+
+
     // Boot complete — transition to Home screen
     // Yield to LVGL instead of blocking delay
     lvBootScreen.setProgress(0.98f, "Ready");
@@ -2211,7 +2220,10 @@ void loop() {
     if (millis() - lastStatusUpdate >= STATUS_UPDATE_MS) {
         lastStatusUpdate = millis();
         if (powerMgr.isScreenOn()) {
+            // Update battery related paramt
             ui.lvStatusBar().setBatteryPercent(powerMgr.batteryPercent());
+            ui.lvStatusBar().setCharging(powerMgr.isCharging());
+            ui.lvStatusBar().setBatteryDisplay(userConfig.settings().batteryDisplay); // Switch between bar and percent
             // Update TCP connection indicator
             bool anyTcpUp = false;
             for (auto* tcp : tcpClients) {

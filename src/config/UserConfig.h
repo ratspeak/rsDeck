@@ -58,6 +58,12 @@ struct UserSettings {
     bool denseFontMode = false;       // T-Deck Plus: adaptive font toggle
     bool themeLight = false;          // false = dark (original palette)
 
+    // Battery
+    uint8_t batteryDisplay = 1;        // 0 = percent, 1 = bar
+    uint8_t batteryModel = 0;          // 0=lipo, 1=linear
+    float chargeThresholdV = 4.0f;     // Battery voltage threshold for indication "is charging"
+    float fullBatteryV = 3.9f;         // Battery voltage if 100% charged
+
     // Keyboard
     uint8_t keyboardBrightness = 100; // Percentage 0-100 (0 = off)
     bool keyboardAutoOn = false;      // Backlight ON when switching to ACTIVE power state

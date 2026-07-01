@@ -19,6 +19,8 @@ public:
     void setAutoIfacePeers(int n);
     void setGPSFix(bool hasFix);
     void setBatteryPercent(int pct);
+    void setBatteryDisplay(uint8_t mode);  // 0 = percent, 1 = bar
+    void setCharging(bool charging);
     void flashAnnounce();
     void showToast(const char* msg, uint32_t durationMs = 1500);
 
@@ -40,6 +42,7 @@ private:
     lv_obj_t* _lblTime = nullptr;       // Left: current time
     lv_obj_t* _lblLinks = nullptr;      // Center: brand/status text
     lv_obj_t* _lblBatt = nullptr;       // Right: battery %
+    lv_obj_t* _barBatt = nullptr;       // Right: Battery bar
     lv_obj_t* _toast = nullptr;
     lv_obj_t* _lblToast = nullptr;
 
@@ -53,7 +56,12 @@ private:
     int _autoIfacePeers = -1;  // -1 hidden, 0 yellow, >0 green
     bool _gpsFix = false;
     bool _use24h = false;
+
+    // Battery
     int _battPct = -1;
+    uint8_t _battDisplay = 0;
+    bool _isCharging = false;
+
     int _lastHour = -1;
     int _lastMinute = -1;
     unsigned long _announceFlashEnd = 0;

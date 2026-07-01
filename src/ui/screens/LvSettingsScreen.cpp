@@ -582,6 +582,62 @@ void LvSettingsScreen::buildItems() {
             return summary;
         }});
 
+    // Battery
+    int battStart = idx;
+    _items.push_back({"Battery Display", SettingType::ENUM_CHOICE,
+        [&s]() { return (int)s.batteryDisplay; },
+        [&s](int v) { s.batteryDisplay = (uint8_t)v; },
+        nullptr, 0, 1, 1, {"Percent", "Bar"}});
+    idx++;
+
+    _items.push_back({"Discharge Curve", SettingType::ENUM_CHOICE,
+        [&s]() { return (int)s.batteryModel; },
+        [&s](int v) { s.batteryModel = (uint8_t)v; },
+        nullptr, 0, 1, 1, {"LiPo / Li-Ion", "Linear"}});
+    idx++;
+
+    _items.push_back({"Charge Above", SettingType::INTEGER,
+        [&s]() { return (int)roundf(s.chargeThresholdV * 100); },
+        [&s](int v) { s.chargeThresholdV = v / 100.0f; },
+        [](int v) -> String {
+            char buf[8]; snprintf(buf, sizeof(buf), "%.2fV", v / 100.0f); return String(buf);
+        }, 380, 430, 1});
+    idx++;
+    _items.push_back({"Full Battery", SettingType::INTEGER,
+        [&s]() { return (int)roundf(s.fullBatteryV * 100); },
+        [&s](int v) { s.fullBatteryV = v / 100.0f; },
+        [](int v) -> String {
+            char buf[8]; snprintf(buf, sizeof(buf), "%.2fV", v / 100.0f); return String(buf);
+        }, 350, 420, 1});
+    idx++;
+
+
+    _items.push_back({"Voltage", SettingType::ACTION, nullptr, nullptr,
+        [this](int) -> String {
+            if (!_power) return String("--");
+            char buf[12];
+            snprintf(buf, sizeof(buf), "%.2fV", _power->batteryVoltage());
+            return String(buf);
+        }});
+    idx++;
+    _items.push_back({"Charge", SettingType::ACTION, nullptr, nullptr,
+        [this](int) -> String {
+            if (!_power) return String("--");
+            return String(_power->batteryPercent()) + "%";
+        }});
+    idx++;
+    _categories.push_back({"Battery", battStart, idx - battStart,
+        [this, &s]() -> String {
+            String summary = s.batteryDisplay == 0 ? String("Percent") : String("Bar");
+            if (_power) {
+                summary += " / ";
+                char buf[8];
+                snprintf(buf, sizeof(buf), "%.2fV", _power->batteryVoltage());
+                summary += buf;
+            }
+            return summary;
+        }});
+
     // LoRa link
     int radioStart = idx;
     _items.push_back({"LoRa Radio", SettingType::TOGGLE,
@@ -2102,6 +2158,12 @@ void LvSettingsScreen::applyAndSave() {
         if (_scrollContainer) lv_obj_set_style_bg_color(_scrollContainer, lv_color_hex(Theme::BG), 0);
     }
     if (_power) {
+
+        // Battery
+        _power->setBatteryModel(s.batteryModel);
+        _power->setChargeThreshold(s.chargeThresholdV);
+        _power->setFullBatteryVoltage(s.fullBatteryV);
+
         _power->setBrightness(s.brightness);
         _power->setDimTimeout(s.screenDimTimeout);
         _power->setOffTimeout(s.screenOffTimeout);

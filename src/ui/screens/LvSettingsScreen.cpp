@@ -587,52 +587,55 @@ void LvSettingsScreen::buildItems() {
     _items.push_back({"Battery Display", SettingType::ENUM_CHOICE,
         [&s]() { return (int)s.batteryDisplay; },
         [&s](int v) { s.batteryDisplay = (uint8_t)v; },
-        nullptr, 0, 1, 1, {"Percent", "Bar"}});
+        nullptr, BATTERY_DISPLAY_PERCENT, BATTERY_DISPLAY_BAR, 1, {"Percent", "Bar"}});
     idx++;
 
-    _items.push_back({"Discharge Curve", SettingType::ENUM_CHOICE,
-        [&s]() { return (int)s.batteryModel; },
-        [&s](int v) { s.batteryModel = (uint8_t)v; },
-        nullptr, 0, 1, 1, {"LiPo / Li-Ion", "Linear"}});
-    idx++;
-
-    _items.push_back({"Charge Above", SettingType::INTEGER,
-        [&s]() { return (int)roundf(s.chargeThresholdV * 100); },
-        [&s](int v) { s.chargeThresholdV = v / 100.0f; },
-        [](int v) -> String {
-            char buf[8]; snprintf(buf, sizeof(buf), "%.2fV", v / 100.0f); return String(buf);
-        }, 380, 430, 1});
-    idx++;
-    _items.push_back({"Full Battery", SettingType::INTEGER,
-        [&s]() { return (int)roundf(s.fullBatteryV * 100); },
-        [&s](int v) { s.fullBatteryV = v / 100.0f; },
-        [](int v) -> String {
-            char buf[8]; snprintf(buf, sizeof(buf), "%.2fV", v / 100.0f); return String(buf);
-        }, 350, 420, 1});
-    idx++;
-
-
-    _items.push_back({"Voltage", SettingType::ACTION, nullptr, nullptr,
-        [this](int) -> String {
-            if (!_power) return String("--");
-            char buf[12];
-            snprintf(buf, sizeof(buf), "%.2fV", _power->batteryVoltage());
-            return String(buf);
-        }});
-    idx++;
-    _items.push_back({"Charge", SettingType::ACTION, nullptr, nullptr,
+    _items.push_back({"Estimated Charge", SettingType::READONLY, nullptr, nullptr,
         [this](int) -> String {
             if (!_power) return String("--");
             return String(_power->batteryPercent()) + "%";
         }});
     idx++;
+
+    if (s.devMode) {
+        _items.push_back({"Discharge Curve", SettingType::ENUM_CHOICE,
+            [&s]() { return (int)s.batteryModel; },
+            [&s](int v) { s.batteryModel = (uint8_t)v; },
+            nullptr, BATTERY_MODEL_LIPO, BATTERY_MODEL_LINEAR, 1, {"LiPo / Li-Ion", "Linear"}});
+        idx++;
+
+        _items.push_back({"Charge Above", SettingType::INTEGER,
+            [&s]() { return (int)roundf(s.chargeThresholdV * 100); },
+            [&s](int v) { s.chargeThresholdV = v / 100.0f; },
+            [](int v) -> String {
+                char buf[8]; snprintf(buf, sizeof(buf), "%.2fV", v / 100.0f); return String(buf);
+            }, 380, 430, 1});
+        idx++;
+        _items.push_back({"Full Voltage", SettingType::INTEGER,
+            [&s]() { return (int)roundf(s.fullBatteryV * 100); },
+            [&s](int v) { s.fullBatteryV = v / 100.0f; },
+            [](int v) -> String {
+                char buf[8]; snprintf(buf, sizeof(buf), "%.2fV", v / 100.0f); return String(buf);
+            }, 350, 420, 1});
+        idx++;
+
+        _items.push_back({"Voltage", SettingType::READONLY, nullptr, nullptr,
+            [this](int) -> String {
+                if (!_power) return String("--");
+                char buf[12];
+                snprintf(buf, sizeof(buf), "%.2fV", _power->batteryVoltage());
+                return String(buf);
+            }});
+        idx++;
+    }
+
     _categories.push_back({"Battery", battStart, idx - battStart,
         [this, &s]() -> String {
-            String summary = s.batteryDisplay == 0 ? String("Percent") : String("Bar");
+            String summary = s.batteryDisplay == BATTERY_DISPLAY_PERCENT ? String("Percent") : String("Bar");
             if (_power) {
                 summary += " / ";
                 char buf[8];
-                snprintf(buf, sizeof(buf), "%.2fV", _power->batteryVoltage());
+                snprintf(buf, sizeof(buf), "%d%%", _power->batteryPercent());
                 summary += buf;
             }
             return summary;

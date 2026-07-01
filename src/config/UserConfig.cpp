@@ -19,6 +19,14 @@ void UserConfig::sanitizeSettings() {
     _settings.loraCR = constrain(_settings.loraCR, 5, 8);
     _settings.loraTxPower = constrain(_settings.loraTxPower, -9, 22);
     _settings.loraPreamble = constrain(_settings.loraPreamble, 6L, 65L);
+    _settings.batteryDisplay = constrain((int)_settings.batteryDisplay,
+        (int)BATTERY_DISPLAY_PERCENT, (int)BATTERY_DISPLAY_BAR);
+    _settings.batteryModel = constrain((int)_settings.batteryModel,
+        (int)BATTERY_MODEL_LIPO, (int)BATTERY_MODEL_LINEAR);
+    _settings.chargeThresholdV = constrain(_settings.chargeThresholdV,
+        BATTERY_CHARGE_THRESHOLD_MIN, BATTERY_CHARGE_THRESHOLD_MAX);
+    _settings.fullBatteryV = constrain(_settings.fullBatteryV,
+        BATTERY_FULL_VOLTAGE_MIN, BATTERY_FULL_VOLTAGE_MAX);
 }
 
 bool UserConfig::parseJson(const String& json) {
@@ -107,10 +115,10 @@ bool UserConfig::parseJson(const String& json) {
     _settings.bleEnabled       = false;
 
     // battery settings
-    _settings.batteryDisplay     = doc["batt_display"] | 1;
-    _settings.batteryModel       = doc["batt_model"]   | 0;
-    _settings.chargeThresholdV = doc["charge_thresh_v"] | 4.0f;
-    _settings.fullBatteryV     = doc["full_battery_v"]  | 3.8f;
+    _settings.batteryDisplay = doc["batt_display"] | BATTERY_DISPLAY_BAR;
+    _settings.batteryModel = doc["batt_model"] | BATTERY_MODEL_LIPO;
+    _settings.chargeThresholdV = doc["charge_thresh_v"] | BATTERY_CHARGE_THRESHOLD_DEFAULT;
+    _settings.fullBatteryV = doc["full_battery_v"] | BATTERY_FULL_VOLTAGE_DEFAULT;
 
     _settings.gpsTimeEnabled     = doc["gps_time"]     | true;
     _settings.gpsLocationEnabled = doc["gps_location"] | false;

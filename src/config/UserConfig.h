@@ -17,6 +17,17 @@ struct WiFiNetwork {
 
 constexpr size_t WIFI_STA_MAX_NETWORKS = 3;
 
+constexpr uint8_t BATTERY_DISPLAY_PERCENT = 0;
+constexpr uint8_t BATTERY_DISPLAY_BAR = 1;
+constexpr uint8_t BATTERY_MODEL_LIPO = 0;
+constexpr uint8_t BATTERY_MODEL_LINEAR = 1;
+constexpr float BATTERY_CHARGE_THRESHOLD_DEFAULT = 4.0f;
+constexpr float BATTERY_FULL_VOLTAGE_DEFAULT = 3.9f;
+constexpr float BATTERY_CHARGE_THRESHOLD_MIN = 3.80f;
+constexpr float BATTERY_CHARGE_THRESHOLD_MAX = 4.30f;
+constexpr float BATTERY_FULL_VOLTAGE_MIN = 3.50f;
+constexpr float BATTERY_FULL_VOLTAGE_MAX = 4.20f;
+
 struct TCPEndpoint {
     String host;
     uint16_t port = TCP_DEFAULT_PORT;
@@ -59,10 +70,10 @@ struct UserSettings {
     bool themeLight = false;          // false = dark (original palette)
 
     // Battery
-    uint8_t batteryDisplay = 1;        // 0 = percent, 1 = bar
-    uint8_t batteryModel = 0;          // 0=lipo, 1=linear
-    float chargeThresholdV = 4.0f;     // Battery voltage threshold for indication "is charging"
-    float fullBatteryV = 3.9f;         // Battery voltage if 100% charged
+    uint8_t batteryDisplay = BATTERY_DISPLAY_BAR;
+    uint8_t batteryModel = BATTERY_MODEL_LIPO;
+    float chargeThresholdV = BATTERY_CHARGE_THRESHOLD_DEFAULT;
+    float fullBatteryV = BATTERY_FULL_VOLTAGE_DEFAULT;
 
     // Keyboard
     uint8_t keyboardBrightness = 100; // Percentage 0-100 (0 = off)

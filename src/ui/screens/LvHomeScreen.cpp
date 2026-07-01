@@ -207,11 +207,32 @@ void LvHomeScreen::createUI(lv_obj_t* parent) {
         self->toggleWiFi();
     }, this);
 
-    _statNodes = makeStat(parent, kPad, "PEERS", &_lblNodes);
-    makeClickable(_statNodes, [](lv_event_t* e) {
-        auto* self = (LvHomeScreen*)lv_event_get_user_data(e);
-        self->openPeers();
-    }, this);
+    _statNodes = makePanel(parent, kPad, kStatY, kCellW, kStatH, Theme::BG_ELEVATED, Theme::BORDER);
+    makeCaption(_statNodes, "LORA AIRTIME");
+    _rssiChart = lv_chart_create(_statNodes);
+    lv_obj_set_pos(_rssiChart, 4, 15);
+    lv_obj_set_size(_rssiChart, 90, 20);
+    lv_obj_set_style_bg_opa(_rssiChart, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(_rssiChart, 0, 0);
+    lv_obj_set_style_pad_all(_rssiChart, 0, 0);
+    lv_obj_clear_flag(_rssiChart, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+    lv_chart_set_type(_rssiChart, LV_CHART_TYPE_BAR);
+    lv_chart_set_point_count(_rssiChart, kRssiPoints);
+    lv_chart_set_div_line_count(_rssiChart, 0, 0);
+    lv_obj_set_style_pad_column(_rssiChart, 0, LV_PART_MAIN);
+    lv_chart_set_range(_rssiChart, LV_CHART_AXIS_PRIMARY_Y, -130, 0);
+    lv_chart_set_range(_rssiChart, LV_CHART_AXIS_SECONDARY_Y, 0, 100);
+    _rssiSeries = lv_chart_add_series(_rssiChart, lv_color_hex(Theme::SUCCESS), LV_CHART_AXIS_PRIMARY_Y);
+    _txSeries = lv_chart_add_series(_rssiChart, lv_color_hex(Theme::WARNING_CLR), LV_CHART_AXIS_SECONDARY_Y);
+    lv_chart_set_all_value(_rssiChart, _rssiSeries, LV_CHART_POINT_NONE);
+    lv_chart_set_all_value(_rssiChart, _txSeries, LV_CHART_POINT_NONE);
+    int oldest = (_rssiHistoryNext - _rssiHistoryCount + kRssiPoints) % kRssiPoints;
+    for (int i = 0; i < _rssiHistoryCount; i++) {
+        const auto& sample = _rssiHistory[(oldest + i) % kRssiPoints];
+        lv_chart_set_next_value(_rssiChart, _rssiSeries, sample.first);
+        lv_chart_set_next_value(_rssiChart, _txSeries, sample.second);
+    }
+
     _statPaths = makeStat(parent, kPad + kCellW + kGap, "AUDIO", &_lblPaths);
     makeClickable(_statPaths, [](lv_event_t* e) {
         auto* self = (LvHomeScreen*)lv_event_get_user_data(e);
@@ -356,11 +377,28 @@ void LvHomeScreen::refreshUI() {
     if (_am) {
         online = _am->nodesOnlineSince(1800000);
     }
-    lv_label_set_text_fmt(_lblNodes, "%d", online);
-    lv_obj_set_style_text_color(_lblNodes, lv_color_hex(
-        online > 0 ? Theme::ACCENT : Theme::TEXT_SECONDARY), 0);
     setPanelTone(_statNodes, online > 0 ? Theme::PRIMARY_SUBTLE : Theme::BG_ELEVATED,
                  online > 0 ? Theme::PRIMARY : Theme::BORDER);
+    // LORA AIRTIME
+    // Fills RSSI values and TX values to _rssiHistory
+    {
+        int16_t rssiVal = LV_CHART_POINT_NONE;
+        int16_t txVal = LV_CHART_POINT_NONE;
+        if (_radio && _radio->isTxBusy()) {
+            txVal = 100;
+        } else if (_radio) {
+            rssiVal = (int16_t)_radio->currentRssi();
+        }
+
+        _rssiHistory[_rssiHistoryNext] = {rssiVal, txVal};
+        _rssiHistoryNext = (_rssiHistoryNext + 1) % kRssiPoints;
+        if (_rssiHistoryCount < kRssiPoints) _rssiHistoryCount++;
+
+        if (_rssiChart && _rssiSeries && _txSeries) {
+            lv_chart_set_next_value(_rssiChart, _rssiSeries, rssiVal);
+            lv_chart_set_next_value(_rssiChart, _txSeries, txVal);
+        }
+    }
 
     bool audioOn = !_cfg || _cfg->settings().audioEnabled;
     lv_label_set_text(_lblPaths, audioOn ? "ON" : "OFF");
@@ -430,10 +468,6 @@ bool LvHomeScreen::handleKey(const KeyEvent& event) {
         }
         if (focused == _statLinks) {
             toggleGPS();
-            return true;
-        }
-        if (focused == _statNodes) {
-            openPeers();
             return true;
         }
         if (_announceCb) _announceCb();

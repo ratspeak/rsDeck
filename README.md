@@ -1,6 +1,6 @@
 <div align="center">
 
-# [rsDeck](https://ratspeak.org/)
+# rsDeck <br> ⚠️ DEPRECATED - use [ratspeak-handheld](https://github.com/ratspeak/ratspeak-handheld) ⚠️
 
 **Dual-mode Ratspeak firmware for the LilyGo T-Deck Plus.**
 

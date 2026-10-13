@@ -14,6 +14,8 @@ namespace {
 
 constexpr int kPeerRowH = 36;
 constexpr int kPeerHeaderH = 20;
+constexpr int kSearchBarH = 22;
+
 unsigned long nodeAgeMs(const DiscoveredNode& node, unsigned long now) {
     if (node.lastSeen == 0 || now < node.lastSeen) return ULONG_MAX;
     return now - node.lastSeen;
@@ -101,10 +103,28 @@ void LvNodesScreen::createUI(lv_obj_t* parent) {
     lv_obj_set_style_bg_color(parent, lv_color_hex(Theme::BG), 0);
     lv_obj_set_style_pad_all(parent, 0, 0);
 
+    _searchLabel = lv_label_create(parent);
+    lv_obj_set_size(_searchLabel, Theme::CONTENT_W, kSearchBarH);
+    lv_obj_set_pos(_searchLabel, 0, 0);
+    lv_obj_set_style_bg_color(_searchLabel, lv_color_hex(Theme::BG_SURFACE), 0);
+    lv_obj_set_style_bg_opa(_searchLabel, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_side(_searchLabel, LV_BORDER_SIDE_BOTTOM, 0);
+    lv_obj_set_style_border_width(_searchLabel, 1, 0);
+    lv_obj_set_style_border_color(_searchLabel, lv_color_hex(Theme::BORDER), 0);
+    lv_obj_set_style_radius(_searchLabel, 0, 0);
+    lv_obj_set_style_pad_left(_searchLabel, 8, 0);
+    lv_obj_set_style_pad_top(_searchLabel, 4, 0);
+    lv_obj_set_style_text_font(_searchLabel, &lv_font_rsdeck_12, 0);
+    lv_obj_set_style_text_color(_searchLabel, lv_color_hex(Theme::TEXT_MUTED), 0);
+    lv_label_set_long_mode(_searchLabel, LV_LABEL_LONG_CLIP);
+    lv_obj_clear_flag(_searchLabel, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+    _searchText = "";
+
     _emptyState = createEmptyState(parent);
 
     _list = lv_obj_create(parent);
-    lv_obj_set_size(_list, lv_pct(100), lv_pct(100));
+    lv_obj_set_pos(_list, 0, kSearchBarH);
+    lv_obj_set_size(_list, lv_pct(100), Theme::CONTENT_H - kSearchBarH);
     lv_obj_add_style(_list, LvTheme::styleList(), 0);
     lv_obj_set_layout(_list, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(_list, LV_FLEX_FLOW_COLUMN);
@@ -211,6 +231,7 @@ void LvNodesScreen::destroyUI() {
     _overlayTitle = nullptr; _overlayMeta = nullptr; _overlayReach = nullptr;
     _nicknameBox = nullptr; _nicknameLbl = nullptr; _nicknameHint = nullptr;
     _list = nullptr; _emptyState = nullptr;
+    _searchLabel = nullptr;
     LvScreen::destroyUI();
 }
 
@@ -241,6 +262,18 @@ void LvNodesScreen::refreshUI() {
 void LvNodesScreen::rebuildList() {
     if (!_am || !_list) return;
     _lastRebuild = millis();
+
+    if (_searchLabel) {
+        if (_searchText.length() > 0) {
+            String text = "Search: " + _searchText;
+            lv_obj_set_style_text_color(_searchLabel, lv_color_hex(Theme::PRIMARY), 0);
+            lv_label_set_text(_searchLabel, text.c_str());
+        } else {
+            lv_obj_set_style_text_color(_searchLabel, lv_color_hex(Theme::TEXT_MUTED), 0);
+            lv_label_set_text(_searchLabel, "Type to search peers");
+        }
+    }
+
     // Preserve scroll position across rebuilds
     lv_coord_t scrollY = lv_obj_get_scroll_y(_list);
     lv_obj_clean(_list);
@@ -252,7 +285,17 @@ void LvNodesScreen::rebuildList() {
     _lastNodeCount = count;
     unsigned long now = millis();
 
+    String query = _searchText;
+    query.toLowerCase();
+
     for (int i = 0; i < count; i++) {
+        if (query.length() > 0) {
+            String name = displayNameFor(nodes[i]).c_str();
+            name.toLowerCase();
+            String hex = nodes[i].hash.toHex().c_str();
+            hex.toLowerCase();
+            if (name.indexOf(query) < 0 && hex.indexOf(query) < 0) continue;
+        }
         if (nodes[i].saved) _sortedContactIndices.push_back(i);
         else _sortedOnlineIndices.push_back(i);
     }
@@ -283,7 +326,7 @@ void LvNodesScreen::rebuildList() {
 
     bool devMode = _cfg && _cfg->settings().devMode;
 
-    auto addHeader = [&](const char* text) {
+    auto addHeader = [&](const char* text, uint32_t color = Theme::ACCENT) {
         lv_obj_t* hdr = lv_obj_create(_list);
         lv_obj_set_size(hdr, Theme::CONTENT_W, kPeerHeaderH);
         lv_obj_add_style(hdr, LvTheme::styleSectionHeader(), 0);
@@ -292,7 +335,7 @@ void LvNodesScreen::rebuildList() {
         lv_obj_clear_flag(hdr, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
         lv_obj_t* lbl = lv_label_create(hdr);
         lv_obj_set_style_text_font(lbl, &lv_font_rsdeck_10, 0);
-        lv_obj_set_style_text_color(lbl, lv_color_hex(Theme::ACCENT), 0);
+        lv_obj_set_style_text_color(lbl, lv_color_hex(color), 0);
         lv_label_set_text(lbl, text);
         lv_obj_set_pos(lbl, 8, 5);
     };
@@ -367,7 +410,7 @@ void LvNodesScreen::rebuildList() {
     {
         char hdrBuf[32];
         snprintf(hdrBuf, sizeof(hdrBuf), "RECENT PEERS (%d)", (int)_sortedOnlineIndices.size());
-        addHeader(hdrBuf);
+        addHeader(hdrBuf, Theme::SUCCESS);
         for (int idx : _sortedOnlineIndices) addNodeRow(idx);
     }
 
@@ -496,6 +539,25 @@ bool LvNodesScreen::handleLongPress() {
 bool LvNodesScreen::handleKey(const KeyEvent& event) {
     if (!_am) return false;
 
+    // --- Type to search ---
+    if (_actionState == NodeAction::BROWSE && !_confirmDelete && !_focusActive) {
+        bool isBackspace = event.character == '\b' || event.character == 0x7F || event.del;
+        bool isClear = event.character == 0x1B;
+        bool isPrintable = event.character >= 0x20 && event.character <= 0x7E;
+
+        if ((isBackspace || isClear) && _searchText.length() > 0) {
+            if (isClear) _searchText = "";
+            else _searchText.remove(_searchText.length() - 1);
+            rebuildList();
+            return true;
+        }
+        if (isPrintable && _searchText.length() < 32) {
+            _searchText += (char)event.character;
+            rebuildList();
+            return true;
+        }
+    }
+
     // --- Focus activation guard (only in browse mode) ---
     if (_actionState == NodeAction::BROWSE && !_confirmDelete &&
         !_focusActive && (event.up || event.down || event.enter)) {
@@ -588,18 +650,6 @@ bool LvNodesScreen::handleKey(const KeyEvent& event) {
         }
         _confirmDelete = false;
         if (_ui) _ui->lvStatusBar().showToast("Kept contact", 800);
-        return true;
-    }
-
-    // 's' or 'S' to save/unsave contact
-    if (event.character == 's' || event.character == 'S') {
-        int nodeIdx = getFocusedNodeIdx();
-        if (nodeIdx >= 0 && nodeIdx < (int)_am->nodes().size()) {
-            auto& node = const_cast<DiscoveredNode&>(_am->nodes()[nodeIdx]);
-            node.saved = !node.saved;
-            if (node.saved) _am->saveContacts();
-            rebuildList();
-        }
         return true;
     }
 

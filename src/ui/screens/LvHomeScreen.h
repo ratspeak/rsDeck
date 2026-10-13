@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include <functional>
 #include <vector>
+#include <utility>
+#include <array>
 
 class ReticulumManager;
 class SX1262;
@@ -66,6 +68,14 @@ private:
     lv_obj_t* _statNodes = nullptr;
     lv_obj_t* _statPaths = nullptr;
     lv_obj_t* _statLinks = nullptr;
+    lv_obj_t* _rssiChart = nullptr;
+    lv_chart_series_t* _rssiSeries = nullptr;
+    lv_chart_series_t* _txSeries = nullptr;
+
+    static constexpr int kRssiPoints = 30;
+    std::array<std::pair<int16_t, int16_t>, kRssiPoints> _rssiHistory{};  // {rssi-or-NONE, tx-or-NONE}
+    int _rssiHistoryNext = 0;   // index the next sample will be written to
+    int _rssiHistoryCount = 0;  // number of valid samples so far (caps at kRssiPoints)
 
     lv_obj_t* _lblConsoleTitle = nullptr;
     lv_obj_t* _lblName = nullptr;

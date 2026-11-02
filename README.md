@@ -6,16 +6,21 @@
 
 [![Status](https://img.shields.io/badge/status-beta-yellow.svg)](#install)
 [![License](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.2-success.svg)](https://github.com/ratspeak/rsDeck/releases)
+[![Legacy version](https://img.shields.io/badge/legacy_version-2.0.2-success.svg)](https://github.com/ratspeak/rsDeck/releases)
 
 [Ratspeak](https://github.com/ratspeak/Ratspeak) |
-[Docs](https://ratspeak.org/docs.html) |
-[Downloads](https://ratspeak.org/download.html) |
+[Current docs](https://docs.ratspeak.org/docs/hardware/handheld-guide) |
+[Legacy releases](https://github.com/ratspeak/rsDeck/releases) |
 [rsReticulum](https://github.com/ratspeak/rsReticulum)
 
 </div>
 
 ---
+
+**Legacy repository.** Current firmware and development are in
+[Ratspeak Handheld](https://github.com/ratspeak/ratspeak-handheld). The modes,
+controls, radio defaults and build artifacts below describe this retained
+repository; they are not the current handheld release instructions.
 
 rsDeck turns a [LilyGo T-Deck Plus](https://www.lilygo.cc/products/t-deck-plus)
 into a two-mode Reticulum handheld. Standalone mode is an on-device
@@ -24,12 +29,15 @@ for Ratspeak, Sideband, or another Reticulum client over BLE or USB serial.
 
 ## Install
 
-Use the Ratspeak web flasher:
-[ratspeak.org/download.html](https://ratspeak.org/download.html).
+For current firmware, follow the
+[handheld installation guide](https://docs.ratspeak.org/docs/hardware/flashing-firmware)
+and choose **T-Deck Plus** in the
+[Ratspeak web flasher](https://ratspeak.org/download.html). The current full
+image is `tdeck-full.bin`.
 
-Put the T-Deck Plus in download mode by holding the trackball while powering on,
-connect USB, then flash `rsdeck-full`. The standalone-only and RNode-only
-images are release artifacts for launcher users or focused testing.
+Back up your identity and messages before changing firmware or layouts. Legacy
+packages from this repository use different names and storage layouts; matching
+a device name does not establish that an update will preserve its data.
 
 ## Modes
 
@@ -50,14 +58,15 @@ On first boot, Standalone mode generates a Reticulum identity and asks for a
 display name. Your LXMF address is the 32-character hex string you share with
 contacts.
 
-- Tabs: Home, Friends, Msgs, Peers, Setup.
+- Tabs: Home, Chats, Contacts, Peers, Settings.
 - Navigation: trackball movement and click/Enter.
 - Announce: press the trackball or Enter on the Home tab.
 - Add contacts: select a discovered peer, then open or save the chat.
 - Send messages: open a chat, type, and press Enter.
 - Delivery color: yellow while sending, green after delivery confirmation.
 - Identity import: place one raw 64-byte Reticulum identity file under
-  `/ratdeck/identity/` on the SD card, then use Setup -> Import Identity.
+  `/ratdeck/identity/` on the SD card, then use
+  **Settings → Identity & Device → Import Identity**.
   Files named `import.identity` or `import.key` are preferred; otherwise rsDeck
   accepts exactly one non-reserved `.identity` or `.key` file in that folder.
   Ratspeak's encrypted `.rsi` backups are not imported on-device; from Ratspeak,
@@ -66,18 +75,18 @@ contacts.
 ## Radio Presets
 
 `Long Fast` is the compiled-in default. All radio parameters can also be tuned
-from Setup. Changes apply immediately.
+from Settings. Changes apply immediately.
 
-| Preset | SF | BW | CR | TXP | Bitrate | Link budget |
-|---|---:|---:|---:|---:|---:|---:|
-| Short Turbo | 7 | 500 kHz | 4/5 | 14 dBm | 21.99 kbps | 140 dB |
-| Short Fast | 7 | 250 kHz | 4/5 | 14 dBm | 10.84 kbps | 143 dB |
-| Short Slow | 8 | 250 kHz | 4/5 | 14 dBm | 6.25 kbps | 145.5 dB |
-| Medium Fast | 9 | 250 kHz | 4/5 | 17 dBm | 3.52 kbps | 148 dB |
-| Medium Slow | 10 | 250 kHz | 4/5 | 17 dBm | 1.95 kbps | 150.5 dB |
-| Long Turbo | 11 | 500 kHz | 4/8 | 22 dBm | 1.34 kbps | 150 dB |
-| **Long Fast** *(default)* | **11** | **250 kHz** | **4/5** | **22 dBm** | **1.07 kbps** | **153 dB** |
-| Long Moderate | 11 | 125 kHz | 4/8 | 22 dBm | 0.34 kbps | 156 dB |
+| Preset | SF | BW | CR | TXP |
+|---|---:|---:|---:|---:|
+| Short Turbo | 7 | 500 kHz | 4/5 | 14 dBm |
+| Short Fast | 7 | 250 kHz | 4/5 | 14 dBm |
+| Short Slow | 8 | 250 kHz | 4/5 | 14 dBm |
+| Medium Fast | 9 | 250 kHz | 4/5 | 17 dBm |
+| Medium Slow | 10 | 250 kHz | 4/5 | 17 dBm |
+| Long Turbo | 11 | 500 kHz | 4/8 | 22 dBm |
+| **Long Fast** *(default)* | **11** | **250 kHz** | **4/5** | **22 dBm** |
+| Long Moderate | 11 | 125 kHz | 4/8 | 22 dBm |
 
 You are responsible for operating within local laws and radio regulations.
 
@@ -95,19 +104,30 @@ AP mode exposes a local TCP endpoint for a nearby Reticulum host:
   target_port = 4242
 ```
 
-The bridging UI and interface behavior may change as Ratspeak's client release
-stabilizes.
+This configuration describes the legacy firmware's access point. Join its WiFi
+network first; use the address shown by the device if it differs from the default.
 
 ## Build From Source
+
+These commands build the retained legacy source. Install Git, Make, Python 3
+with virtual-environment support, and Arduino CLI first. Use a fresh checkout:
+packaging replaces files under `dist/`.
 
 ```bash
 git clone https://github.com/ratspeak/rsDeck
 cd rsDeck
+git checkout 45b9c1a977385da96e9994d7a16966259d28e9f6
+python3 -m venv .venv
+. .venv/bin/activate
 python3 -m pip install platformio esptool
 make prep-tdeck
 make package
-make flash port=/dev/cu.usbmodem3101
 ```
+
+After backing up the device, `make flash PORT=/dev/cu.usbmodemXXXX` builds and
+writes the full legacy image at offset `0x0`. Replace the port with your device
+and close any app using it. A factory write can replace settings; do not assume
+that data from another firmware layout will survive.
 
 Useful build targets:
 
@@ -119,7 +139,7 @@ make full-image          # launcher + Standalone + RNode
 make package             # release zips and launcher bins
 ```
 
-Release artifacts are written to `dist/`:
+Legacy artifacts are written to `dist/`:
 
 ```text
 dist/rsdeck-full.zip
@@ -129,9 +149,10 @@ dist/rsdeck-standalone-m5launcher.bin
 dist/rsdeck-rnode-m5launcher.bin
 ```
 
-Use the `.zip` files with the Ratspeak web flasher. The `*-m5launcher.bin`
-files are app images for M5Launcher/M5Burner-style launchers that boot
-Standalone or RNode directly from SD.
+Each `.zip` contains a merged factory image and its legacy flasher manifest.
+The `*-m5launcher.bin` files are bare applications for a compatible external
+launcher or a correctly sized OTA slot. Do not write a bare application at
+offset `0x0`.
 
 ## License
 
